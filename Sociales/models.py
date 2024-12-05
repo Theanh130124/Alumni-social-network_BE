@@ -51,7 +51,7 @@ class Post():
     pass
 
 
-class test:
+class test123:
     
 
 
