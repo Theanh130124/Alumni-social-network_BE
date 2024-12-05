@@ -43,7 +43,12 @@ class User(AbstractUser):
     cover_photo = CloudinaryField('cover', blank=True, default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1733331571/hvyl33kneih3lsn1p9hp.png")
     # Trạng thái hđ
     account_status = models.CharField(max_length=10, choices=AccountStatus.choices, default=AccountStatus.INACTIVE)
-
+class Comment(models.Model):
+    pass
+class Like(models.Model):
+    pass
+class Post():
+    pass
 
 
 
