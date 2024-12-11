@@ -1,58 +1,68 @@
-from datetime import datetime
-
 from ckeditor.fields import RichTextField
-from cloudinary.models import CloudinaryField
-from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+from enum import Enum
+from cloudinary.models import CloudinaryField
 from django.template.defaultfilters import default
 
-
 class BaseModel(models.Model):
-    update_at = models.DateTimeField(auto_now=True)
-    create_at = models.DateTimeField(auto_now_add=True)
+    created_date = models.DateField(auto_now_add=True, null=True)
+    updated_date = models.DateField(auto_now=True, null=True)
+    deleted_date = models.DateField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+
     class Meta:
         abstract = True
+        ordering = ['-id'] # Bản ghi mới tạo sẽ hiện trước
 
-class Roles(models.TextChoices):
-    FORMER = 'Cựu học sinh'
-    LECTURER =  'Giảng viên'
-    ADMIN =  'Quản trị viên'
-class Gender(models.TextChoices):
-    MALE = 'Nam'
-    FEMALE = 'Nữ'
 
-class AccountStatus(models.TextChoices):
-    ACTIVE = 'Hoạt động'
-    INACTIVE = 'Không hoạt động'
-    SUSPENDED = 'Bị khóa'
+class Role(Enum):
+    ADMIN = "Quản trị viên"
+    LECTURER = "Giảng viên"
 
-class Profile(models.Model):
-    #1-1 với user  blank = True -> để trống trên form
-    user = models.OneToOneField('User',on_delete=models.SET_NULL , null= True , blank = True) #Xóa User -> Profile vẫn còn -> user_id = null
-    address = models.TextField()
-    birthday = models.DateField(default=None)
-    phone_number = models.CharField(max_length=10 ,unique=True , null=True)
-    gender = models.CharField(max_length=6, choices=Gender.choices , default=Gender.MALE) #key
+    @classmethod
+    def choices(cls): #-> cls là UserRole
+        return [(key.value, key.name) for key in cls]  #[ ADMIN : "Quản trị viên"  , " " ...  ]
+
+#Trang thái
+class ConfirmStatus(BaseModel):
+    confirm_status_value = models.CharField(max_length=50)
 
     def __str__(self):
-        return self.user.name
+        return self.confirm_status_value
 
-class Account(AbstractUser):
-    role = models.CharField(choices=Roles.choices , max_length=30)
-    avatar_user = CloudinaryField('avatar', blank=True, default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1732632586/pfvvxablnkaeqmmbqeit.png")
-    cover_photo = CloudinaryField('cover', blank=True, default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1733331571/hvyl33kneih3lsn1p9hp.png")
-    account_status = models.CharField(max_length=20, choices=AccountStatus.choices, default=AccountStatus.ACTIVE)
+
+class User(AbstractUser):
+    confirm_status = models.ForeignKey(ConfirmStatus, on_delete=models.CASCADE) #, default=3)
 
     def __str__(self):
         return self.username
-#Tài khoản khi đã cung cấp MSSV cũ
-# class AlumniAccount(BaseModel):
-#     alumni_account_code = models.CharField(max_length=255)
-#     account = models.OneToOneField(User, on_delete=models.CASCADE)
-#
-#     def __str__(self):
-#         return self.alumni_account_code
-#
+
+
+class Account(BaseModel):
+    phone_number = models.CharField(max_length=10, unique=True, null=True)
+    date_of_birth = models.DateField(null=True)
+    avatar = CloudinaryField('avatar' , default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1732632586/pfvvxablnkaeqmmbqeit.png" , blank='True')
+    cover_avatar = CloudinaryField('cover' ,default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1733331571/hvyl33kneih3lsn1p9hp.png" ,blank= 'True')
+    account_status = models.BooleanField(default=False)
+    gender = models.BooleanField(default=True, null=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True ,primary_key=True) #Có primary_key django tạo thay id
+    role = models.CharField(
+        max_length=50,
+        choices=Role.choices(),
+        default=Role.LECTURER.value
+    )
+    def __str__(self):
+        return self.user.username
+
+#TK Cựu SV
+class AlumniAccount(BaseModel):
+    alumni_account_code = models.CharField(max_length=50)
+    account = models.OneToOneField(Account, on_delete=models.CASCADE ,primary_key=True)
+
+    def __str__(self):
+        return self.alumni_account_code
+#Bài Viết
 class Post(BaseModel):
     post_content = RichTextField()
     comment_lock = models.BooleanField(default=False)
@@ -61,12 +71,14 @@ class Post(BaseModel):
     def __str__(self):
         return self.post_content
 
+#Like , Haha , Tym
 class Reaction(BaseModel):
     reaction_name = models.CharField(max_length=255)
 
     def __str__(self):
         return self.reaction_name
 
+#M2M post vs reaction
 class PostReaction(BaseModel):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
@@ -74,7 +86,7 @@ class PostReaction(BaseModel):
 
 
 class PostImage(BaseModel):
-    post_image_url = models.ImageField(upload_to="images/post_images/%Y/%m", null=True, blank=True)
+    post_image_url = CloudinaryField(blank=True , null=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
 
     def __str__(self):
@@ -83,7 +95,7 @@ class PostImage(BaseModel):
 
 class Comment(BaseModel):
     comment_content = models.TextField()
-    comment_image_url = models.ImageField(upload_to="images/comments/%Y/%m", null=True, blank=True)
+    comment_image_url = CloudinaryField(blank = True , null=True )
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
 
@@ -118,7 +130,6 @@ class SurveyQuestion(BaseModel):
 
     def __str__(self):
         return self.question_content
-
 
 class SurveyQuestionOption(BaseModel):
     question_option_value = models.TextField()
@@ -188,7 +199,10 @@ class InvitationGroup(BaseModel):
 #     post_invitation = models.ForeignKey(PostInvitation, on_delete=models.CASCADE)
 
 class Room(BaseModel):
-
+    # roomId = 1
+    # khang -> theanh ||| roomName = 1
+    # theanh -> khang ||| roomName = 1
+    # id sender + id receiver => room Id
     first_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='first_user_room', null=True)
     second_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='second_user_room', null=True)
     received_message_date = models.DateTimeField(auto_now=True)
@@ -208,6 +222,3 @@ class Message(BaseModel):
 
     def __str__(self):
         return self.content
-
-
-
