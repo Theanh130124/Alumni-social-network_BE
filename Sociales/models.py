@@ -6,6 +6,11 @@ from cloudinary.models import CloudinaryField
 from django.template.defaultfilters import default
 
 
+class BaseEnum(Enum):
+    @classmethod
+    def choices(cls): #-> cls là UserRole
+        return [(key.value, key.name) for key in cls] #[ ADMIN : "Quản trị viên"  , " " ...  ]
+
 class BaseModel(models.Model):
     created_date = models.DateField(auto_now_add=True, null=True)
     updated_date = models.DateField(auto_now=True, null=True)
@@ -17,22 +22,17 @@ class BaseModel(models.Model):
         # ordering = ['-id'] # Bản ghi mới tạo sẽ hiện trước
 
 
-class Role(Enum):
+class Role(BaseEnum):
     ADMIN = "Quản trị viên"
     LECTURER = "Giảng viên"
 
-    @classmethod
-    def choices(cls): #-> cls là UserRole
-        return [(key.value, key.name) for key in cls]  #[ ADMIN : "Quản trị viên"  , " " ...  ]
 
 
-class ConfirmStatus(Enum):
+class ConfirmStatus(BaseEnum):
     PENDING = "Chờ xác nhận"
     CONFIRMED = "Đã xác nhận"
     REJECTED = "Đã từ chối"
-    @classmethod
-    def choices(cls):
-        return [(key.value, key.name) for key in cls]
+
 
 class User(AbstractUser):
     confirm_status = models.CharField(
@@ -70,27 +70,28 @@ class AlumniAccount(BaseModel):
 class Post(BaseModel):
     post_content = RichTextField()
     comment_lock = models.BooleanField(default=False)
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
+    account = models.ForeignKey(Account,  on_delete=models.CASCADE, null=True , related_name="posts")
 
     def __str__(self):
         return self.post_content
 #Like , Haha , Tym
-class Reaction(BaseModel):
-    reaction_name = models.CharField(max_length=255)
+class Reaction(BaseEnum):
+    LIKE = "Like"
+    HAHA = "Haha"
+    TYM = " Thả tym"
 
-    def __str__(self):
-        return self.reaction_name
-
-#M2M post vs reaction
+#Chi tiết reaction
 class PostReaction(BaseModel):
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
-    reaction = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True ,related_name='post_reactions')
+    post = models.ForeignKey(Post, on_delete=models.CASCADE , related_name='post_reactions')
+    reaction = models.CharField(max_length=50,
+                                choices=Reaction.choices(),
+                                default=None)
 
-#Post có hình
+#Hình của post
 class PostImage(BaseModel):
     post_image_url = CloudinaryField(blank=True , null=True)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE , related_name='post_images')
 
     def __str__(self):
         return self.post_image_url.name
@@ -99,8 +100,8 @@ class PostImage(BaseModel):
 class Comment(BaseModel):
     comment_content = models.TextField()
     comment_image_url = CloudinaryField(blank = True , null=True )
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True , related_name='comments')
+    post = models.ForeignKey(Post, on_delete=models.CASCADE ,  related_name='comments')
 
     def __str__(self):
         return self.comment_content
@@ -111,7 +112,7 @@ class PostSurvey(BaseModel):
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     is_closed = models.BooleanField(default=False)
-    post = models.OneToOneField(Post, on_delete=models.CASCADE)
+    post = models.OneToOneField(Post, on_delete=models.CASCADE, primary_key=True)
 
     def __str__(self):
         return self.post_survey_title
@@ -128,8 +129,8 @@ class SurveyQuestion(BaseModel):
     question_content = models.TextField()
     question_order = models.IntegerField()
     is_required = models.BooleanField(default=False)
-    post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE)
-    survey_question_type = models.ForeignKey(SurveyQuestionType, on_delete=models.CASCADE)
+    post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE ,related_name='survey_questions')
+    survey_question_type = models.ForeignKey(SurveyQuestionType, on_delete=models.CASCADE ,related_name='survey_questions')
 
     def __str__(self):
         return self.question_content
