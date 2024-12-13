@@ -58,7 +58,7 @@ INSTALLED_APPS = [
 import pymysql
 pymysql.install_as_MySQLdb()
 AUTH_USER_MODEL = 'Sociales.User'
-CKEDITOR_UPLOAD_PATH = "images/lessons/"
+CKEDITOR_UPLOAD_PATH = "images/tenluutru/"
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
