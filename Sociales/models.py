@@ -88,7 +88,7 @@ class PostReaction(models.Model):
                                 choices=Reaction.choices(),
                                 default=None)
 
-#Hình của post
+# #Hình của post
 class PostImage(BaseModel):
     post_image_url = CloudinaryField(blank=True , null=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE , related_name='post_images')
@@ -106,7 +106,7 @@ class Comment(BaseModel):
     def __str__(self):
         return self.comment_content
 
-#Post Khảo sát
+# #Post Khảo sát
 class PostSurvey(BaseModel):
     post_survey_title = models.CharField(max_length=255)
     start_time = models.DateTimeField()
@@ -117,14 +117,14 @@ class PostSurvey(BaseModel):
     def __str__(self):
         return self.post_survey_title
 
-#Loai khao sat
+# #Loai khao sat
 class SurveyQuestionType(BaseEnum):
     TRAINING_PROGRAM = "Chương trình đào tạo"
     RECRUITMENT_NEEDS = "Nhu cầu tuyển dụng"
     ALUMNI_INCOME = "Thu nhập cựu sinh viên"
     EMPLOYMENT_STATUS = "Tình hình việc làm"
 
-#Câu hỏi
+# #Câu hỏi
 class SurveyQuestion(BaseModel):
     question_content = models.TextField()
     question_order = models.IntegerField()
@@ -137,7 +137,7 @@ class SurveyQuestion(BaseModel):
     )
     def __str__(self):
         return self.question_content
-#Lựa chọn
+# #Lựa chọn
 class SurveyQuestionOption(models.Model):
     question_option_value = models.TextField()
     question_option_order = models.IntegerField()
@@ -146,7 +146,7 @@ class SurveyQuestionOption(models.Model):
 
     def __str__(self):
         return self.question_option_value
-#Tra ve KhaoSat
+# #Tra ve KhaoSat
 class SurveyResponse(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE)
@@ -154,9 +154,9 @@ class SurveyResponse(models.Model):
     def __str__(self):
         return self.account.user.username + ' - ' + self.post_survey.post_survey_title
 
-#Noi dung cau tra loi
+# #Noi dung cau tra loi
 class SurveyAnswer(models.Model):
-    answer_value = models.CharField(max_length=10000, null=True, blank=True)
+    answer_value = models.CharField(max_length=1000, null=True, blank=True)
     survey_question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE)
     survey_response = models.ForeignKey(SurveyResponse, on_delete=models.CASCADE)
 
@@ -166,21 +166,21 @@ class SurveyAnswer(models.Model):
                    ' (' + self.survey_question.question_content + ' - ' + self.survey_response.__str__() + ') '
         else:
             return self.answer_value
-# Bài đăng dạng thư mời
+# # Bài đăng dạng thư mời
 class PostInvitation(BaseModel):
     event_name = models.CharField(max_length=255)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     post = models.OneToOneField(Post , on_delete=models.CASCADE)
     accounts = models.ManyToManyField(Account,blank=True)
-#Lời mời vào nhóm
+# #Lời mời vào nhóm
 class InvitationGroup(BaseModel):
     invitation_group_name = models.CharField(max_length=255)
     accounts = models.ManyToManyField(Account, blank=True)
 
     def __str__(self):
         return self.invitation_group_name
-#Nhóm
+# #Nhóm
 class Group(BaseModel):
     name = models.CharField(max_length=255, unique=True)
     members = models.ManyToManyField(Account, related_name='groups', blank=True)
@@ -199,7 +199,7 @@ class Notification(BaseModel):
     def __str__(self):
         return self.title
 
-#Chat 2 người
+# #Chat 2 người
 class Room(BaseModel):
     first_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='first_user_room', null=True)
     second_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='second_user_room', null=True)

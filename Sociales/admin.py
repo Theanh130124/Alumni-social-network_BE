@@ -24,9 +24,6 @@ class PostAdmin(admin.ModelAdmin):
     search_fields = ['post_content', 'account']
     list_filter = ['comment_lock']
     # inline  -> nữa thêm PostImage .....
-class ReactionAdmin(admin.ModelAdmin):
-    list_filter = ['reaction_name']
-
 
 class PostReactionAdmin(admin.ModelAdmin):
     list_display = ['id', 'post_id', 'post', 'reaction', 'account']
@@ -46,27 +43,53 @@ class SurveyQuestionInLineAdmin(admin.TabularInline):
 
 
 class PostSurveyAdmin(admin.ModelAdmin):
-    list_display = ['id', 'post_survey_title', 'start_time', 'end_time', 'is_closed', 'post']
+    list_display = [ 'post_survey_title', 'start_time', 'end_time', 'is_closed', 'post']
     search_fields = ['post_survey_title']
     inlines = [SurveyQuestionInLineAdmin]
 
+class SurveyQuestionAdmin(admin.ModelAdmin):
+    list_display = ['id']
+    search_fields = ['survey_question_type']
 
-class SurveyQuestionTypeAdmin(admin.ModelAdmin):
-    pass
+class SurveyQuestionOptionAdmin(admin.ModelAdmin):
+    list_display = ['survey_question']
 
+class SurveyResponseAdmin(admin.ModelAdmin):
+    list_display = ['account','post_survey']
+class SurveyAnswerAdmin(admin.ModelAdmin):
+    list_display = ['answer_value','survey_question']
+class PostInvitationAdmin(admin.ModelAdmin):
+    list_display = ['event_name']
+class InvitationGroupAdmin(admin.ModelAdmin):
+    list_display = ['invitation_group_name']
+class GroupAdmin(admin.ModelAdmin):
+    list_display = ['name']
 
-class SurveyQuestionOptionInLineAdmin(admin.TabularInline):
-    model = SurveyQuestionOption
+class RoomAdmin(admin.ModelAdmin):
+    list_display = ['first_user','second_user']
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ['who_sent','room']
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ['title']
 
 my_admin_site = SocialMediaAppAdminSite(name='TheAnhAdmin')
 my_admin_site.register(User,UserAdmin)
 my_admin_site.register(Account,AccountAdmin)
 my_admin_site.register(AlumniAccount,AlumniAccountAdmin)
 my_admin_site.register(Post, PostAdmin)
-my_admin_site.register(Reaction,ReactionAdmin)
 my_admin_site.register(PostReaction,PostReactionAdmin)
 my_admin_site.register(PostImage, PostImageAdmin)
 my_admin_site.register(Comment, CommentAdmin)
 my_admin_site.register(PostSurvey, PostSurveyAdmin)
-my_admin_site.register(SurveyQuestionType, SurveyQuestionTypeAdmin)
+my_admin_site.register(SurveyQuestion,SurveyQuestionAdmin)
+my_admin_site.register(SurveyQuestionOption,SurveyQuestionOptionAdmin)
+my_admin_site.register(SurveyResponse,SurveyResponseAdmin)
+my_admin_site.register(SurveyAnswer,SurveyAnswerAdmin)
+my_admin_site.register(PostInvitation,PostInvitationAdmin)
+my_admin_site.register(InvitationGroup,InvitationGroupAdmin)
+my_admin_site.register(Group,GroupAdmin)
+my_admin_site.register(Notification,NotificationAdmin)
+my_admin_site.register(Room,RoomAdmin)
+my_admin_site.register(Message,MessageAdmin)
+
 
