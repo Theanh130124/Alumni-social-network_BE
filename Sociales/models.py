@@ -55,7 +55,7 @@ class Account(BaseModel):
     role = models.CharField(
         max_length=50,
         choices=Role.choices(),
-        default=Role.LECTURER.value
+        default=Role.LECTURER.name
     )
     def __str__(self):
         return self.user.username
@@ -71,7 +71,7 @@ class Post(BaseModel):
     post_content = RichTextField()
     comment_lock = models.BooleanField(default=False)
     account = models.ForeignKey(Account,  on_delete=models.CASCADE, null=True , related_name="posts")
-
+    notification = models.OneToOneField('Notification', on_delete=models.SET_NULL, null=True, blank=True)
     def __str__(self):
         return self.post_content
 #Like , Haha , Tym
@@ -81,7 +81,7 @@ class Reaction(BaseEnum):
     TYM = " Thả tym"
 
 #Chi tiết reaction
-class PostReaction(BaseModel):
+class PostReaction(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True ,related_name='post_reactions')
     post = models.ForeignKey(Post, on_delete=models.CASCADE , related_name='post_reactions')
     reaction = models.CharField(max_length=50,
@@ -117,12 +117,12 @@ class PostSurvey(BaseModel):
     def __str__(self):
         return self.post_survey_title
 
-#Xem xét Enum
-class SurveyQuestionType(BaseModel):
-    question_type_name = models.CharField(max_length=255)
-
-    def __str__(self):
-        return self.question_type_name
+#Loai khao sat
+class SurveyQuestionType(BaseEnum):
+    TRAINING_PROGRAM = "Chương trình đào tạo"
+    RECRUITMENT_NEEDS = "Nhu cầu tuyển dụng"
+    ALUMNI_INCOME = "Thu nhập cựu sinh viên"
+    EMPLOYMENT_STATUS = "Tình hình việc làm"
 
 #Câu hỏi
 class SurveyQuestion(BaseModel):
@@ -130,12 +130,15 @@ class SurveyQuestion(BaseModel):
     question_order = models.IntegerField()
     is_required = models.BooleanField(default=False)
     post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE ,related_name='survey_questions')
-    survey_question_type = models.ForeignKey(SurveyQuestionType, on_delete=models.CASCADE ,related_name='survey_questions')
-
+    survey_question_type = models.CharField(
+        max_length=50,
+        choices=SurveyQuestionType.choices(),
+        default=SurveyQuestionType.TRAINING_PROGRAM.name
+    )
     def __str__(self):
         return self.question_content
 #Lựa chọn
-class SurveyQuestionOption(BaseModel):
+class SurveyQuestionOption(models.Model):
     question_option_value = models.TextField()
     question_option_order = models.IntegerField()
     survey_question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE)
@@ -143,22 +146,76 @@ class SurveyQuestionOption(BaseModel):
 
     def __str__(self):
         return self.question_option_value
-class SurveyResponse(BaseModel):
+#Tra ve KhaoSat
+class SurveyResponse(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.account.user.username + ' - ' + self.post_survey.post_survey_title
 
-#
-class SurveyAnswer(BaseModel):
+#Noi dung cau tra loi
+class SurveyAnswer(models.Model):
     answer_value = models.CharField(max_length=10000, null=True, blank=True)
     survey_question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE)
     survey_response = models.ForeignKey(SurveyResponse, on_delete=models.CASCADE)
 
     def __str__(self):
         if not self.answer_value:
-            return 'Not input text type' + \
+            return 'Không có nội dung' + \
                    ' (' + self.survey_question.question_content + ' - ' + self.survey_response.__str__() + ') '
         else:
             return self.answer_value
+# Bài đăng dạng thư mời
+class PostInvitation(BaseModel):
+    event_name = models.CharField(max_length=255)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    post = models.OneToOneField(Post , on_delete=models.CASCADE)
+    accounts = models.ManyToManyField(Account,blank=True)
+#Lời mời vào nhóm
+class InvitationGroup(BaseModel):
+    invitation_group_name = models.CharField(max_length=255)
+    accounts = models.ManyToManyField(Account, blank=True)
+
+    def __str__(self):
+        return self.invitation_group_name
+#Nhóm
+class Group(BaseModel):
+    name = models.CharField(max_length=255, unique=True)
+    members = models.ManyToManyField(Account, related_name='groups', blank=True)
+
+    def __str__(self):
+        return self.name
+
+#Thông báo
+class Notification(BaseModel):
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    is_sent = models.BooleanField(default=False)
+    recipients = models.ManyToManyField(Account, related_name='notifications', blank=True)
+    group_recipients = models.ManyToManyField(Group, related_name='notifications', blank=True)
+
+    def __str__(self):
+        return self.title
+
+#Chat 2 người
+class Room(BaseModel):
+    first_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='first_user_room', null=True)
+    second_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='second_user_room', null=True)
+    received_message_date = models.DateTimeField(auto_now=True)
+    seen = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ['first_user', 'second_user']
+
+    def __str__(self):
+        return str(self.first_user.id) + str(self.second_user.id)
+
+class Message(BaseModel):
+    who_sent = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
+    content = models.CharField(max_length=10000)
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, null=True)
+
+    def __str__(self):
+        return self.content
