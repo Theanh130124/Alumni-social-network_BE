@@ -35,6 +35,7 @@ class ConfirmStatus(BaseEnum):
 
 
 class User(AbstractUser):
+    first_name = None
     confirm_status = models.CharField(
         max_length=50,
         choices=ConfirmStatus.choices(),
