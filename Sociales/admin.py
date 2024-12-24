@@ -9,15 +9,18 @@ class SocialMediaAppAdminSite(admin.AdminSite):
     index_title = 'Thế Anh DjangonAdministration'
 
 class UserAdmin(admin.ModelAdmin):
-    list_display = ['id', 'username','email', 'confirm_status']
-    search_fields = ['username']
-    list_filter = ['confirm_status']
+    list_display = ['id', 'username', 'first_name','last_name','email']
+    search_fields = ['username', 'role']
+
+
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ['user' , 'role', 'account_status','phone_number']
-    search_fields =  ['role','user','phone_number']
+    list_display = ['user' ,'phone_number' ,'role',]
+    search_fields =  ['user','phone_number' ,'role',]
     list_filter = ['role']
+
 class AlumniAccountAdmin(admin.ModelAdmin):
-    list_display = ['account_id', 'alumni_account_code']
+    list_display = ['account_id', 'alumni_account_code' ,'confirm_status']
+    list_filter = ['confirm_status']
 
 class PostAdmin(admin.ModelAdmin):
     list_display = ['id', 'post_content', 'comment_lock', 'account']

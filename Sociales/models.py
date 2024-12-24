@@ -1,73 +1,108 @@
 from ckeditor.fields import RichTextField
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from enum import Enum
 from cloudinary.models import CloudinaryField
 from django.template.defaultfilters import default
+from django.db.models import TextChoices
 
 
-class BaseEnum(Enum):
-    @classmethod
-    def choices(cls): #-> cls là UserRole
-        return [(key.value, key.name) for key in cls] #[ ADMIN : "Quản trị viên"  , " " ...  ]
 
 class BaseModel(models.Model):
     created_date = models.DateField(auto_now_add=True, null=True)
     updated_date = models.DateField(auto_now=True, null=True)
-    deleted_date = models.DateField(null=True, blank=True)
     active = models.BooleanField(default=True)
 
     class Meta:
         abstract = True
         # ordering = ['-id'] # Bản ghi mới tạo sẽ hiện trước
+class Gender(TextChoices):
+    Nam = "Male","Nam"
+    Nu = "Female","Nữ"
+
+class UserRole(TextChoices):
+    ADMIN = "Admin", "Quản trị viên"
+    LECTURER ="LECTURER" ,"Giảng viên"
+    ALUMNI ="ALUMNI","Cựu sinh viên"
+
+class ConfirmStatus(TextChoices):
+    PENDING = "Pending", "Chờ xác nhận"
+    CONFIRMED = "Confirmed", "Đã xác nhận"
+    REJECTED = "Rejected", "Đã từ chối"
 
 
-class Role(BaseEnum):
-    ADMIN = "Quản trị viên"
-    LECTURER = "Giảng viên"
+class Reaction(TextChoices):
+    LIKE = "Like", "Like"
+    HAHA = "Haha", "Haha"
+    TYM = "Tym", "Thả tym"
 
+class SurveyQuestionType(TextChoices):
+    TRAINING_PROGRAM = "Training Program", "Chương trình đào tạo"
+    RECRUITMENT_NEEDS = "Recruitment Needs", "Nhu cầu tuyển dụng"
+    ALUMNI_INCOME = "Alumni Income", "Thu nhập cựu sinh viên"
+    EMPLOYMENT_STATUS = "Employment Status", "Tình hình việc làm"
 
-
-class ConfirmStatus(BaseEnum):
-    PENDING = "Chờ xác nhận"
-    CONFIRMED = "Đã xác nhận"
-    REJECTED = "Đã từ chối"
-
-
+#Tài khoản
 class User(AbstractUser):
-    first_name = None
-    confirm_status = models.CharField(
-        max_length=50,
-        choices=ConfirmStatus.choices(),
-        default=ConfirmStatus.PENDING.name
-    )
 
     def __str__(self):
         return self.username
-
+#Pass 24h của giảng viên
+    # def set_default_password(self):
+    #     self.set_password("ou@123")
+    #     if self.role == UserRole.LECTURER:  # Áp dụng cho giảng viên
+    #         self.force_password_change_deadline = now() + timedelta(hours=24)
+    #     else:
+    #         self.force_password_change_deadline = None  # Không yêu cầu đổi mật khẩu
+    # def is_password_change_required(self):
+    #     """Kiểm tra xem có bắt buộc đổi mật khẩu hay không."""
+    #     if self.role != UserRole.LECTURER:  # Chỉ kiểm tra cho giảng viên
+    #         return False
+    #     return self.force_password_change_deadline and now() > self.force_password_change_deadline
+#Khi có tài khoản sẽ điền này
 class Account(BaseModel):
-    phone_number = models.CharField(max_length=10, unique=True, null=True)
-    date_of_birth = models.DateField(null=True)
-    avatar = CloudinaryField('avatar' , default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1732632586/pfvvxablnkaeqmmbqeit.png" , blank='True')
-    cover_avatar = CloudinaryField('cover' ,default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1733331571/hvyl33kneih3lsn1p9hp.png" ,blank= 'True')
-    account_status = models.BooleanField(default=False)
-    gender = models.BooleanField(default=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE,primary_key=True) #Có primary_key django tạo thay id thành acount_id
+    avatar = CloudinaryField('avatar',
+                             default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1732632586/pfvvxablnkaeqmmbqeit.png",
+                             blank=True)
+    cover_avatar = CloudinaryField('cover',
+                                   default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1733331571/hvyl33kneih3lsn1p9hp.png",
+                                   blank=True)
     role = models.CharField(
         max_length=50,
-        choices=Role.choices(),
-        default=Role.LECTURER.name
+        choices=UserRole.choices,
+        default=UserRole.LECTURER
     )
+    phone_number = models.CharField(max_length=10, unique=True, null=True)
+    date_of_birth = models.DateField(null=True)
+    gender = models.CharField(
+        max_length=50,
+        choices=Gender.choices,
+        default=Gender.Nam
+    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
     def __str__(self):
         return self.user.username
+#Fe fetch Api nhớ để ý cái này
+    # def get_avatar_url(self):
+    #     return self.avatar.url.replace('image/upload/', '')
+    #
+    # def get_cover_avatar_url(self):
+    #     return self.cover_avatar.url.replace('image/upload/', '')
+
 
 #TK Cựu SV
 class AlumniAccount(BaseModel):
     alumni_account_code = models.CharField(max_length=50 ,unique=True)
     account = models.OneToOneField(Account, on_delete=models.CASCADE ,primary_key=True)
+    #Để quản trị viên xác nhận
+    confirm_status = models.CharField(
+        max_length=50,
+        choices=ConfirmStatus.choices,
+        default=ConfirmStatus.PENDING.name
+    )
 
     def __str__(self):
         return self.alumni_account_code
+
 class Post(BaseModel):
     post_content = RichTextField()
     comment_lock = models.BooleanField(default=False)
@@ -75,19 +110,17 @@ class Post(BaseModel):
     notification = models.OneToOneField('Notification', on_delete=models.SET_NULL, null=True, blank=True)
     def __str__(self):
         return self.post_content
-#Like , Haha , Tym
-class Reaction(BaseEnum):
-    LIKE = "Like"
-    HAHA = "Haha"
-    TYM = " Thả tym"
+
 
 #Chi tiết reaction
 class PostReaction(models.Model):
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True ,related_name='post_reactions')
-    post = models.ForeignKey(Post, on_delete=models.CASCADE , related_name='post_reactions')
-    reaction = models.CharField(max_length=50,
-                                choices=Reaction.choices(),
-                                default=None)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True, related_name='post_reactions')
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='post_reactions')
+    reaction = models.CharField(
+        max_length=50,
+        choices=Reaction.choices,
+        default=Reaction.LIKE
+    )
 
 # #Hình của post
 class PostImage(BaseModel):
@@ -118,12 +151,6 @@ class PostSurvey(BaseModel):
     def __str__(self):
         return self.post_survey_title
 
-# #Loai khao sat
-class SurveyQuestionType(BaseEnum):
-    TRAINING_PROGRAM = "Chương trình đào tạo"
-    RECRUITMENT_NEEDS = "Nhu cầu tuyển dụng"
-    ALUMNI_INCOME = "Thu nhập cựu sinh viên"
-    EMPLOYMENT_STATUS = "Tình hình việc làm"
 
 # #Câu hỏi
 class SurveyQuestion(BaseModel):
@@ -133,7 +160,7 @@ class SurveyQuestion(BaseModel):
     post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE ,related_name='survey_questions')
     survey_question_type = models.CharField(
         max_length=50,
-        choices=SurveyQuestionType.choices(),
+        choices=SurveyQuestionType.choices,
         default=SurveyQuestionType.TRAINING_PROGRAM.name
     )
     def __str__(self):
