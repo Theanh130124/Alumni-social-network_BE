@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 from rest_framework.views import APIView
+from tutorial.quickstart.serializers import UserSerializer
 
 from .models import *
 
@@ -71,3 +72,36 @@ class UserSerializerForInvitationGroup(serializers.ModelSerializer):
         fields = ['first_name', 'last_name', 'email']
 
 ###
+class UserSerializerForSearch(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username','first_name' , 'last_name' ,"email"]
+
+class AccountSerializerForUser(serializers.ModelSerializer):
+    user = UserSerializerForSearch()
+    role = serializers.SerializerMethodField()
+
+    avatar = serializers.SerializerMethodField(source='avatar')
+    cover_avatar = serializers.SerializerMethodField(source='cover_avatar')
+
+    def get_role(self, obj):
+        return {"value": obj.role.value} #Xem xet
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['role'] = str(representation['role']['id']) + '/' + representation['role']['role_name']
+        return representation
+
+    @staticmethod
+    def get_avatar(account):
+        if account.avatar:
+            return account.avatar.name
+
+    @staticmethod
+    def get_cover_avatar(account):
+        if account.cover_avatar:
+            return account.cover_avatar.name
+
+    class Meta:
+        model = Account
+        fields = ['user', 'avatar', 'cover_avatar', 'phone_number', 'role']
