@@ -78,6 +78,7 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
                 first_name = request.data.get('first_name')
                 last_name = request.data.get('last_name')
                 gender = request.data.get('gender')
+                confirm_status = ConfirmStatus.PENDING
                 alumni_account_code = request.data.get('alumni_account_code')
                 duplicate_username = User.objects.filter(username=username).exists()
                 if duplicate_username:
@@ -89,11 +90,33 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
                 user.set_password(password)
                 user.save()
                 account = Account.objects.create(user=user,gender=gender , role=UserRole.ALUMNI.name)
-                alumni = AlumniAccount.objects.create(account=account,alumni_account_code=alumni_account_code)
+                alumni = AlumniAccount.objects.create(account=account,alumni_account_code=alumni_account_code , confirm_status=confirm_status)
                 return  Response(AlumniAccountSerializer(alumni).data,status=status.HTTP_200_OK)
             # except IntegrityError as e:
             #     error_message = str(e)
             #     return Response({'Trùng khóa chính: ': error_message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            error_message = str(e)
+            return Response({'Phát hiện lỗi: ': error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    @action(methods=['post'], detail=False , url_path='create_lecturer')
+    def create_lecturer(self ,request):
+        try:
+            with transaction.atomic():
+                username = request.data.get('username')
+                #Password ou@123
+                email = request.data.get('email')
+                first_name = request.data.get('first_name')
+                last_name = request.data.get('last_name')
+                gender = request.data.get('gender')
+                role = UserRole.LECTURER
+                duplicate_username = User.objects.filter(username=username).exists()
+                if duplicate_username:
+                    return Response({"Username đã tồn tại trong hệ thống": username} , status=status.HTTP_400_BAD_REQUEST)
+                user = User.objects.create_user(username=username,email=email  ,first_name = first_name ,last_name = last_name)
+                user.set_password('ou@123')
+                user.save()
+                account = Account.objects.create(user=user , gender = gender , role=role)
+                return Response(AccountSerializer(account).data , status=status.HTTP_200_OK)
         except Exception as e:
             error_message = str(e)
             return Response({'Phát hiện lỗi: ': error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
