@@ -89,7 +89,7 @@ class Account(BaseModel):
     #     return self.cover_avatar.url.replace('image/upload/', '')
 
 
-#TK Cựu SV
+#TK Cựu SV -> primary_key rồi nên nó không có cột id riêng
 class AlumniAccount(BaseModel):
     alumni_account_code = models.CharField(max_length=50 ,unique=True)
     account = models.OneToOneField(Account, on_delete=models.CASCADE ,primary_key=True)

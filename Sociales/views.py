@@ -1,10 +1,13 @@
 import json
+from multiprocessing.reduction import duplicate
 
+from django.core.exceptions import ObjectDoesNotExist
 from dbm import error
 from re import search
-
+from django.db.models import Count, Q
 
 from django.shortcuts import render
+from django.template.defaultfilters import first
 from django.utils.decorators import method_decorator
 from rest_framework import viewsets , generics , permissions ,status
 from rest_framework.decorators import action, api_view
@@ -21,102 +24,95 @@ from django_redis import get_redis_connection #có localhost trong settings host
 redis_connection = get_redis_connection("default")
 
 
-class AccountViewSet(ModelViewSet ,generics.ListAPIView):
+class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIView,  generics.CreateAPIView , generics.UpdateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    pagination_class = MyPageSize
+    #http://127.0.0.1:8000/users/?name=Đào -> tìm trên họ tên không nằm trên API
+    def get_queryset(self):
+        queries = self.queryset
+        name = self.request.query_params.get('name')
+        if name:
+            names = name.split()
+            for name in names:
+                queries =queries.filter(Q(first_name__icontains=name) | Q(last_name__icontains=name))
+        return queries
+    # def get_permissions(self):
+    #     if self.action in ['']
+    #         return [permissions.IsAuthenticated()]
+    #     return  [permissions.AllowAny()]
+
+    #Create , update
+    def get_serializer_class(self):
+        if self.action == 'create': #Gọi vậy thì phải gọi thêm generics.CreateAPIView
+            return CreateUserSerializer
+        if self.action in ['update', 'partial_update']:
+            return UpdateUserSerializer
+        return UserSerializer
+
+    #current_user
+    @action(methods=['get'],detail=False , url_path='current_user')
+    def current_user(self,request):
+        return  Response(UserSerializer(request.user).data,status=status.HTTP_200_OK)
+
+    #Truy vấn ngược
+    @action(methods=['get'], detail=True, url_path='get_account_by_user_id')
+    def get_account_by_user_id(self,request,pk):
+        try:
+            user = self.get_object()
+            account = user.account
+            return Response(AccountSerializer(account,context={'request':request}).data, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response({'detail': 'Tài khoản không tồn tại!!!'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            error_message = str(e)
+            return Response({'Lỗi : ': error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(methods=['post'],detail=False,url_path='create_alumni')
+    def create_alumni(self,request):
+        try: #Xem còn sđt ,avt , cover
+            with transaction.atomic(): #Đảm bảo xảy ra , không thì không lưu
+                username = request.data.get('username')
+                password = request.data.get('password')
+                email = request.data.get('email')
+                first_name = request.data.get('first_name')
+                last_name = request.data.get('last_name')
+                gender = request.data.get('gender')
+                alumni_account_code = request.data.get('alumni_account_code')
+                duplicate_username = User.objects.filter(username=username).exists()
+                if duplicate_username:
+                    return Response({"Username đã tồn tại trong hệ thống": username} , status=status.HTTP_400_BAD_REQUEST)
+                duplicate_alumni_account_code = AlumniAccount.objects.filter(alumni_account_code=alumni_account_code).exists()
+                if duplicate_alumni_account_code:
+                    return Response({"Mã sinh viên đã tồn tại trong hệ thống": username}, status=status.HTTP_400_BAD_REQUEST)
+                user = User.objects.create_user(username= username , email=email , first_name=first_name, last_name=last_name)
+                user.set_password(password)
+                user.save()
+                account = Account.objects.create(user=user,gender=gender , role=UserRole.ALUMNI.name)
+                alumni = AlumniAccount.objects.create(account=account,alumni_account_code=alumni_account_code)
+                return  Response(AlumniAccountSerializer(alumni).data,status=status.HTTP_200_OK)
+            # except IntegrityError as e:
+            #     error_message = str(e)
+            #     return Response({'Trùng khóa chính: ': error_message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            error_message = str(e)
+            return Response({'Phát hiện lỗi: ': error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class AccountViewSet(viewsets.ViewSet ,generics.ListAPIView):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
 
-class AlumniAccountViewSet(viewsets.ModelViewSet,generics.ListAPIView):
+  # # Override lại để dùng cái Serializer create, update
+  #   def get_serializer_class(self):
+  #       if self.action == 'create':
+  #           return CreateUserSerializer
+  #       if self.action in ['update', 'partial_update']:
+  #           return UpdateUserSerializer
+  #       return self.serializer_class
+
+class AlumniAccountViewSet(viewsets.ViewSet ,generics.ListAPIView):
     queryset = AlumniAccount.objects.all()
     serializer_class = AlumniAccountSerializer
 
-
-#
-#
-# class RoleAPIView(APIView):
-#     def get(self, request):
-#         # Chuyển Enum Role thành danh sách dict
-#         roles = [{"value": role.value, "name": role.name} for role in Role]
-#         # Sử dụng serializer để chuyển đổi dữ liệu
-#         serializer = RoleSerializer(data=roles, many=True)
-#         serializer.is_valid()  # Xác thực serializer
-#         return Response(serializer.data)
-#
-# #InvitationGroup
-# @method_decorator(decorator=header_authorization, name='list')
-# @method_decorator(decorator=header_authorization, name='create')
-# @method_decorator(decorator=header_authorization, name='retrieve')
-# @method_decorator(decorator=header_authorization, name='update')
-# @method_decorator(decorator=header_authorization, name='partial_update')
-# @method_decorator(decorator=header_authorization, name='destroy')
-# class InvitationGroupViewSet(viewsets.ViewSet, generics.ListAPIView , generics.RetrieveAPIView, generics.CreateAPIView,generics.UpdateAPIView, generics.DestroyAPIView):
-#     queryset = InvitationGroup.objects.filter(active=True)
-#     serializer_class = InvitationGroupSerializer
-#     pagination_class = MyPageSize
-#     permission_classes = [permissions.IsAuthenticated]
-#
-#     def get_serializer_class(self):
-#         if self.action =='create':
-#             return  CrateInvitationGroupSerializer
-#         if self.action in ['update','partial_update']:
-#             return UpdateInvitationGroupSerializer
-#         if self.action == 'retrieve':
-#             return  0  ###
-#
-#     @action(methods=['GET'], detail=True, url_path='accounts')
-#     @method_decorator(decorator=header_authorization,name='accounts')
-#     def get_accounts(self,request,pk):
-#         try:
-#             accounts = self.get_object().accounts.filter(active=True).all()
-#             paginator =MyPageSize()
-#             paginated = paginator.paginate_queryset(accounts,request)
-#             serializer = AccountSerializerForInvitationGroup(paginated, many=True,context={'request':request})
-#             return paginator.get_paginated_response(serializer.data)
-#         except Exception as e:
-#             error_message = str(e)
-#             return Response({'Phát hiện lỗi ': error_message},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#
-#     @action(methods=['POST'], detail =True, url_path='add_or_update_accounts')
-#     @method_decorator(decorator=add_or_update_accounts_from_invitation_group, name='add_or_update_accounts')
-#     def add_or_update_accounts(self, request , pk):
-#         try:
-#             with transaction.atomic(): #Error -> thì rollback (về trang thái trước)
-#                 invitation_group = self.get_object()
-#                 list_account_id = request.data.get('list_account_id',[])
-#                 list_account_id =set(list_account_id) #set loại dữ liệu trùng
-#                 accounts = Account.objects.filter(id__in=list_account_id)
-#                 if len(accounts) != len(list_account_id):
-#                     missing_ids = set(list_account_id) - set(accounts.values_list('id', flat=True))
-#                     raise NotFound(f'Accounts với IDs {missing_ids} không tồn tại.')
-#                 invitation_group.accounts.remove(*accounts)
-#                 invitation_group.save()
-#
-#                 return Response(InvitationGroupSerializer(invitation_group).data , status=status.HTTP_204_NO_CONTENT)
-#         except Exception as e:
-#             return Response({"error":str (e)} ,status =status.HTTP_500_INTERNAL_SERVER_ERROR)
-#     @action(methods=['GET'], detail=False , url_path ='search_group_cache')
-#     @method_decorator(decorator=search_invitation_group_cache, name ='search_group_cache')
-#     def search_group_cache(self,request):
-#         try:
-#             invitation_group_name = self.request.query_params.get('invitation_group_name')
-#             cached_data  = redis_connection.get('search_group_cache:'+invitation_group_name if invitation_group_name is not None else "")
-#             print("Đây là dữ liệu từ redis")
-#             print(cached_data)
-#             if cached_data:
-#                 return  Response(json.loads(cached_data) , status=status.HTTP_200_OK)
-#             invitation_groups = InvitationGroup.objects.filter(invitation_group_name__icontains=invitation_group_name)
-#             print(invitation_groups)
-#             data = []
-#             for group in invitation_groups:
-#                 group_data = InvitationGroupSerializer(group).data
-#                 accounts = group.accounts.all()
-#                 accounts_data = AccountSerializerForUser(accounts,many=True).data
-#                 group_data['accounts_info'] = accounts_data
-#                 data.append(group_data)
-#                 print(accounts)
-#             print(data)
-#             redis_connection.set('search_group_cache:'+invitation_group_name, json.dumps(data) , ex=300)
-#             return Response(data , status=status.HTTP_200_OK)
-#         except Exception as e :
-#             error_message = str(e)
-#             return Response({'Phát hiện lỗi ': error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#
