@@ -71,7 +71,7 @@ class Account(BaseModel):
         choices=UserRole.choices,
         default=UserRole.LECTURER
     )
-    account_status = models.BooleanField(default=False) #Để sau 24h không đổi pass thì khóa
+    account_status = models.BooleanField(default=True) #Để sau 24h không đổi pass thì khóa
     phone_number = models.CharField(max_length=10, unique=True, null=True)
     date_of_birth = models.DateField(null=True)
     gender = models.CharField(
