@@ -55,12 +55,25 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'rest_framework',
     'drf_yasg', #Swagger UI
+    'oauth2_provider'
 ]
 
 import pymysql
 pymysql.install_as_MySQLdb()
 AUTH_USER_MODEL = 'Sociales.User'
 CKEDITOR_UPLOAD_PATH = "images/tenluutru/"
+
+REST_FRAMEWORK = {
+
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    )
+}
+
+# ClIENT_ID = 33NUWzTqhQH89h7dgm3sXYDK5tA0VIBAcxqFGaY0
+# Client secret = 7rbHXYJsVUiIpL2cvNQeFS18s5BeTvqcre6ugsuwQVGR1K3w9yBLIICAvks7ASW16VxlxT6F7bHWyB9CUJNUQdImaSHQfXRFAGEVCJgLR7O2YVoBmbkROWJh4iiyNdTd
+
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

@@ -38,6 +38,7 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('', include('Sociales.urls')),
     path('admin/', my_admin_site.urls),
+    path('oauth2/', include('oauth2_provider.urls',namespace='oauth2_provider')), #xong nho migrate
     re_path(r'^ckeditor/',
     include('ckeditor_uploader.urls')),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
