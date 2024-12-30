@@ -1,9 +1,11 @@
 import json
 from asyncio import Future
+from functools import partial
 from multiprocessing.reduction import duplicate
 from pickle import FALSE
 
 import cloudinary.uploader
+from cloudinary.cache.responsive_breakpoints_cache import instance
 from cloudinary.uploader import upload
 from django.core.exceptions import ObjectDoesNotExist
 from dbm import error
@@ -29,24 +31,19 @@ redis_connection = get_redis_connection("default")
 class IsAdminUserRole(BasePermission):
     def has_permission(self, request, view):
         return  hasattr(request.account, 'role') and request.account.role == UserRole.ADMIN
-
-class UploadBaseViewSet():
-    def perform_upload(self, serializer):
+#Chỉ cần truyền fields = ['','']
+class FileUploadHelper:
+    @staticmethod
+    def upload_files(request , fields):
         try:
-            files = {
-                'avatar':self.request.data.get('avatar'),
-                'cover':self.request.data.get('cover'),
-            }
             upload_res = {}
-            for key , file in files.items():
+            for field in fields:
+                file = request.data.get(field)
                 if file:
-                    upload_data =cloudinary.uploader.upload(file)
-                    upload_res[key] = upload_data['secure_url']
-            # Xem xét replace nó  (image/upload)
-            serializer.save(**upload_res)
+                    upload_res[field]=cloudinary.uploader.upload(file)['secure_url']
+            return upload_res
         except Exception as ex:
-            return Response({'Phát hiện lỗi' , str(ex) } ,  status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            raise Exception(f'Phát hiện lỗi : {str(ex)}')
 
 # post user còn lại dành create admin
 class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIView,  generics.CreateAPIView , generics.UpdateAPIView):
@@ -111,7 +108,6 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
                 date_of_birth = request.data.get('date_of_birth')
                 first_name = request.data.get('first_name')
                 last_name = request.data.get('last_name')
-                role = UserRole.ALUMNI
                 gender = request.data.get('gender')
                 alumni_account_code = request.data.get('alumni_account_code')
                 duplicate_username = User.objects.filter(username=username).exists()
@@ -120,15 +116,12 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
                 duplicate_alumni_account_code = AlumniAccount.objects.filter(alumni_account_code=alumni_account_code).exists()
                 if duplicate_alumni_account_code:
                     return Response({"Mã sinh viên đã tồn tại trong hệ thống": username}, status=status.HTTP_400_BAD_REQUEST)
-                user = User.objects.create_user(username= username , email=email , first_name=first_name, last_name=last_name ,role=role)
+                user = User.objects.create_user(username= username , email=email , first_name=first_name, last_name=last_name )
                 user.set_password(password)
                 user.save()
                 account = Account.objects.create(user=user,gender=gender , role=UserRole.ALUMNI.name,  phone_number=phone_number , date_of_birth=date_of_birth  )
                 alumni = AlumniAccount.objects.create(account=account,alumni_account_code=alumni_account_code )
                 return  Response(AlumniAccountSerializer(alumni).data,status=status.HTTP_200_OK)
-            # except IntegrityError as e:
-            #     error_message = str(e)
-            #     return Response({'Trùng khóa chính: ': error_message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             error_message = str(e)
             return Response({'Phát hiện lỗi: ': error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -198,34 +191,34 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
 
 
 
-class AccountViewSet(UploadBaseViewSet, viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIView):
-    queryset = Account.objects.all()
+class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIView):
+    queryset = Account.objects.all() #Xem nếu filter comfirm_status ?
     serializer_class = AccountSerializer
     pagination_class = MyPageSize
     parser_classes = [parsers.MultiPartParser]
-
-    def get_serializer_class(self):
-        if self.action in ['update','partial_update']:
-            return UpdateAccountSerializer
-        return AccountSerializer
-
     def get_permissions(self):
         if self.action in ['list' ,'update' , 'partial_update']:
             return [permissions.IsAuthenticated()]
         return [permissions.AllowAny()]
 
+    def perform_update(self, serializer):
+        fields = ['avatar','cover_avatar']
+        upload_res = FileUploadHelper.upload_files(self.request,fields=fields)
+        serializer.save(**upload_res)
 
-  # # Override lại để dùng cái Serializer create, update
-  #   def get_serializer_class(self):
-  #       if self.action == 'create':
-  #           return CreateUserSerializer
-  #       if self.action in ['update', 'partial_update']:
-  #           return UpdateUserSerializer
-  #       return self.serializer_class
+    def update(self, request, *args, **kwargs):
+        return super().update(request,*args,**kwargs)
 
-class AlumniAccountViewSet(viewsets.ViewSet ,generics.ListAPIView):
-    queryset = AlumniAccount.objects.filter(confirm_status=True).all()
+
+
+
+# Update trạng thái đăng nhập từ admin cho cựu sv
+class AlumniAccountViewSet(viewsets.ViewSet ,generics.ListAPIView , generics.RetrieveAPIView,generics.UpdateAPIView):
+    queryset = AlumniAccount.objects.all()
     serializer_class = AlumniAccountSerializer
     pagination_class = MyPageSize
 
-
+    def get_permissions(self):
+        if self.action in ['list' ,'update' , 'partial_update', 'retrieve']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]

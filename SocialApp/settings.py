@@ -70,6 +70,13 @@ REST_FRAMEWORK = {
     )
 }
 
+#Thêm vào để setup lại hiệu lực token
+OAUTH2_PROVIDER = {
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 86400,  #Một ngày
+
+}
+
+
 # ClIENT_ID = 33NUWzTqhQH89h7dgm3sXYDK5tA0VIBAcxqFGaY0
 # Client secret = 7rbHXYJsVUiIpL2cvNQeFS18s5BeTvqcre6ugsuwQVGR1K3w9yBLIICAvks7ASW16VxlxT6F7bHWyB9CUJNUQdImaSHQfXRFAGEVCJgLR7O2YVoBmbkROWJh4iiyNdTd
 

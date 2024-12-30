@@ -22,7 +22,6 @@ class CreateUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'password', 'first_name', 'last_name', 'email' ]
     def create(self, validated_data):
         data = validated_data.copy()
-        # tự gán first_name = "TheAnh"
         user = User(**data)
         user.set_password(data['password'])
         user.save()
@@ -38,22 +37,14 @@ class UpdateUserSerializer(serializers.ModelSerializer):
         if password:
             instance.set_password(password)
         return super().update(instance, validated_data) #gọi update của ModelSerializer -> update trừ pass
-    def perform_update(self,serializer):
-        self.perform_update(serializer)
-        serializer.save()
 
+#Dành cho update
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
         fields = ['user_id', 'avatar', 'cover_avatar', 'role', 'phone_number', 'date_of_birth', 'gender', 'user' ]
+        extra_kwargs = {'role': {'read_only': True}}
 
-class UpdateAccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Account
-        fields = ['user_id', 'avatar', 'cover_avatar', 'role', 'phone_number', 'date_of_birth', 'gender', 'user' ]
-        extra_kwargs = {'role':{'read_only':True}}
-    def update(self , instance ,validated_data):
-        return super().update(instance,validated_data)
 
 
 class AlumniAccountSerializer(serializers.ModelSerializer):
@@ -62,4 +53,10 @@ class AlumniAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = AlumniAccount
         fields = ['account_id', 'alumni_account_code', 'account', 'confirm_status']
+        extra_kwargs = {'alumni_account_code': {'read_only': True}}
 
+class PostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = '__all__'
+    
