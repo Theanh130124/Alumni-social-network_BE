@@ -69,4 +69,13 @@ class CreatePostSerializer(serializers.ModelSerializer):
         validated_data['account'] = user.account
         return  super().create(validated_data)
 
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = '__all__'
+
+class PostReactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostReaction
+        fields = '__all__'
 

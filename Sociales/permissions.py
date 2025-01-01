@@ -10,12 +10,12 @@ class IsAdminUserRole(BasePermission):
 
 #Quyền bài viết
 
-#Đang bị Forbiden
-class PostOwner(BasePermission): #Ktra đăng nhập
-    def has_object_permission(self, request, view, post):  #Truyền post vào
+
+class PostOwner(BasePermission):
+    def has_object_permission(self, request, view, post):  # Truyền post vào
         if view.action == 'destroy':
-            request.user == post.account.user or request.user.account.role == UserRole.ADMIN #equal ra True False
-            #Người dùng hiện tại -> trong bài viết có user naày , hoặc admin
-        if view.action  in ['update','partial_update']:
-            request.user == post.account.user
+            return request.user == post.account.user or request.user.account.role == UserRole.ADMIN
+        if view.action in ['update', 'partial_update']:
+            return request.user == post.account.user
         return False
+

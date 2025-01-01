@@ -1,6 +1,7 @@
 import json
 from asyncio import Future
 from functools import partial
+from lib2to3.fixes.fix_input import context
 from multiprocessing.reduction import duplicate
 from pickle import FALSE
 
@@ -11,6 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from dbm import error
 from re import search
 from django.db.models import Count, Q
+from django.db.models.functions import TruncYear
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import render
 from django.template.defaultfilters import first
@@ -96,6 +98,7 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
             error_message = str(e)
             return Response({'Lỗi : ': error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     #Phải tạo user trước khi tạo account dưới nên không viet create vào bên serializers được
+    #Bật detail true được truyền id vào
     @action(methods=['post'],detail=False,url_path='create_alumni')
     def create_alumni(self,request):
         try:
@@ -198,7 +201,7 @@ class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIV
     pagination_class = MyPageSize
     parser_classes = [parsers.MultiPartParser]
     def get_permissions(self):
-        if self.action in ['list' ,'update' , 'partial_update']:
+        if self.action in ['list' ,'update' , 'partial_update','get_post_of_account']:
             return [permissions.IsAuthenticated()]
         return [permissions.AllowAny()]
 
@@ -210,7 +213,17 @@ class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIV
     def update(self, request, *args, **kwargs):
         return super().update(request,*args,**kwargs)
 
-
+    #Xem những bài viết của accout đó
+    @action(methods=['get'],detail=True,url_path='post')
+    def get_post_of_account(self,request,pk):
+        try:
+            account = Account.objects.get(pk=pk)
+            posts = Post.objects.filter(account=account,active=True)
+            paginator = MyPageSize()
+            paginated = paginator.paginate_queryset(posts, request)
+            return Response(PostSerializer(paginated,many=True,context={'request':request}).data,status=status.HTTP_200_OK)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi',str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Update trạng thái đăng nhập từ admin cho cựu sv
@@ -229,6 +242,7 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
     serializer_class = PostSerializer
   #Truyền vào do có tự định nghĩa PostOwner
     pagination_class =  MyPageSize
+    # lookup_field =  fk   -> là để thay đổi pk của detail -> thành fk
 
 
     def get_serializer_class(self):
@@ -238,8 +252,14 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
     def get_permissions(self):
         if self.action in ['destroy','update','partial_update']:
             return [PostOwner()]
-        if self.action in ['list','retrieve','create']:
+        if  self.action in ['list','retrieve','create']:
             return [permissions.IsAuthenticated()]
+        return  [permissions.AllowAny()]
+
+
+
+
+
 
 
 
