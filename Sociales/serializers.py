@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 from rest_framework.views import APIView
+from urllib3 import request
 
 #Serializer validate + json -> python object
 
@@ -59,4 +60,13 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = '__all__'
-    
+class CreatePostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['id' , 'post_content' , 'created_date' , 'updated_date' , 'account' , 'comment_lock']
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['account'] = user.account
+        return  super().create(validated_data)
+
+

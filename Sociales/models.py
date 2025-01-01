@@ -123,7 +123,7 @@ class PostReaction(models.Model):
         default=Reaction.LIKE
     )
 
-# #Hình của post
+# #Hình của post tách ra vì 1 bài viết có nhiều hình ảnh 
 class PostImage(BaseModel):
     post_image_url = CloudinaryField(blank=True , null=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE , related_name='post_images')

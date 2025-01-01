@@ -11,13 +11,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from dbm import error
 from re import search
 from django.db.models import Count, Q
-
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import render
 from django.template.defaultfilters import first
 from django.utils.decorators import method_decorator
 from rest_framework import viewsets , generics , permissions ,status ,parsers
 from rest_framework.decorators import action, api_view
-from rest_framework.permissions import BasePermission
+from .permissions import *
 from rest_framework.viewsets import ModelViewSet
 from Sociales.models  import *
 from .paginators import MyPageSize
@@ -28,9 +28,7 @@ from django_redis import get_redis_connection #có localhost trong settings host
 redis_connection = get_redis_connection("default")
 
 
-class IsAdminUserRole(BasePermission):
-    def has_permission(self, request, view):
-        return  hasattr(request.account, 'role') and request.account.role == UserRole.ADMIN
+
 #Chỉ cần truyền fields = ['','']
 class FileUploadHelper:
     @staticmethod
@@ -44,6 +42,9 @@ class FileUploadHelper:
             return upload_res
         except Exception as ex:
             raise Exception(f'Phát hiện lỗi : {str(ex)}')
+#
+
+
 
 # post user còn lại dành create admin
 class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIView,  generics.CreateAPIView , generics.UpdateAPIView):
@@ -63,7 +64,7 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
             return queryset
     def get_permissions(self):
         if self.action.__eq__('create_lecturer'):#do admin tạo lecturer
-            return [permissions.IsAdminUser()]
+            return [IsAdminUserRole()]
         if self.action in ['list' , 'retrieve' ,'update','partial_update','current_user','account' ,'search_account','recent_search']:
             return [permissions.IsAuthenticated()]
         return  [permissions.AllowAny()] #'create_alumni' .... ngta đk đc
@@ -222,3 +223,23 @@ class AlumniAccountViewSet(viewsets.ViewSet ,generics.ListAPIView , generics.Ret
         if self.action in ['list' ,'update' , 'partial_update', 'retrieve']:
             return [permissions.IsAuthenticated()]
         return [permissions.AllowAny()]
+
+class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView , generics.RetrieveAPIView , generics.UpdateAPIView , generics.DestroyAPIView):
+    queryset = Post.objects.filter(active=True).all()
+    serializer_class = PostSerializer
+  #Truyền vào do có tự định nghĩa PostOwner
+    pagination_class =  MyPageSize
+
+
+    def get_serializer_class(self):
+        if self.action.__eq__('create'):
+            return CreatePostSerializer
+        return PostSerializer
+    def get_permissions(self):
+        if self.action in ['destroy','update','partial_update']:
+            return [PostOwner()]
+        if self.action in ['list','retrieve','create']:
+            return [permissions.IsAuthenticated()]
+
+
+
