@@ -1,5 +1,6 @@
 import json
 from asyncio import Future
+
 from functools import partial
 from lib2to3.fixes.fix_input import context
 from multiprocessing.reduction import duplicate
@@ -217,8 +218,7 @@ class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIV
     @action(methods=['get'],detail=True,url_path='post')
     def get_post_of_account(self,request,pk):
         try:
-            account = Account.objects.get(pk=pk)
-            posts = Post.objects.filter(account=account,active=True)
+            posts = self.get_object().posts.filter(active=True).order_by('-created_date').all() #do có related_name rồi
             paginator = MyPageSize()
             paginated = paginator.paginate_queryset(posts, request)
             return Response(PostSerializer(paginated,many=True,context={'request':request}).data,status=status.HTTP_200_OK)
@@ -255,6 +255,15 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
         if  self.action in ['list','retrieve','create']:
             return [permissions.IsAuthenticated()]
         return  [permissions.AllowAny()]
+    @action(methods=['get'] , detail=True,url_path='comments')
+    def get_comments_in_post(self,request,pk):
+        try:
+            comments = self.get_object().comments.filter(active=True).order_by('-created_date').all() #có khai báo related_name rồi
+            paginator = MyPageSize()
+            paginated = paginator.paginate_queryset(comments, request)
+            return Response(CommentSerializer(paginated,many=True,context={'request':request}).data,status=status.HTTP_200_OK)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi',str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
