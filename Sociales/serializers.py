@@ -74,8 +74,18 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = '__all__'
 
+class ReactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reaction
+        fields = '__all__'
+class PostImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostImage
+        fields = '__all__'
+
 class PostReactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostReaction
         fields = '__all__'
+
 

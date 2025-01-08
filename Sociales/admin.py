@@ -22,11 +22,18 @@ class AlumniAccountAdmin(admin.ModelAdmin):
     list_display = ['account_id', 'alumni_account_code' ,'confirm_status']
     list_filter = ['confirm_status']
 
+class PostImageAdminInLine(admin.TabularInline):
+    model = PostImage
+    extra = 1 #Cho chose 1 ảnh cho đỡ rối mắt
+class CommentAdminInLine(admin.TabularInline):
+    model = Comment
+    extra = 1
+
 class PostAdmin(admin.ModelAdmin):
     list_display = ['id', 'post_content', 'comment_lock', 'account']
     search_fields = ['post_content', 'account']
     list_filter = ['comment_lock']
-    # inline  -> nữa thêm PostImage .....
+    inlines = [PostImageAdminInLine,CommentAdminInLine]
 
 class PostReactionAdmin(admin.ModelAdmin):
     list_display = ['id', 'post_id', 'post', 'reaction', 'account']

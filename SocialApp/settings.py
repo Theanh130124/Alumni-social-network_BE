@@ -27,6 +27,7 @@ cloudinary.config(
     api_secret="it9HP_2TUJjIHLSshkbm0BYA5qE",
     secure=True,
 )
+DEFAULT_FILE_STORAGE = 'cloudinary.storage.MediaCloudinaryStorage'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -55,7 +56,8 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'rest_framework',
     'drf_yasg', #Swagger UI
-    'oauth2_provider'
+    'oauth2_provider',
+    'cloudinary_storage' #đường dẫn cloud mặc định
 ]
 
 import pymysql

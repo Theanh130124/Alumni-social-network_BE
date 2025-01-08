@@ -122,6 +122,8 @@ class PostReaction(models.Model):
         choices=Reaction.choices,
         default=Reaction.LIKE
     )
+    class Meta:
+        unique_together = ('account','post') #Chỉ thả 1 reaction trên 1 post
 
 # #Hình của post tách ra vì 1 bài viết có nhiều hình ảnh 
 class PostImage(BaseModel):
@@ -129,7 +131,7 @@ class PostImage(BaseModel):
     post = models.ForeignKey(Post, on_delete=models.CASCADE , related_name='post_images')
 
     def __str__(self):
-        return self.post_image_url.name
+        return f'https://res.cloudinary.com/dxiawzgnz/{self.post_image_url}'
 
 
 class Comment(BaseModel):

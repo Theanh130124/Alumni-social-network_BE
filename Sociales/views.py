@@ -1,6 +1,7 @@
 import json
 from asyncio import Future
 
+
 from functools import partial
 from lib2to3.fixes.fix_input import context
 from multiprocessing.reduction import duplicate
@@ -9,6 +10,7 @@ from pickle import FALSE
 import cloudinary.uploader
 from cloudinary.cache.responsive_breakpoints_cache import instance
 from cloudinary.uploader import upload
+from django.contrib.admin.templatetags.admin_list import pagination
 from django.core.exceptions import ObjectDoesNotExist
 from dbm import error
 from re import search
@@ -23,7 +25,7 @@ from rest_framework.decorators import action, api_view
 from .permissions import *
 from rest_framework.viewsets import ModelViewSet
 from Sociales.models  import *
-from .paginators import MyPageSize
+from .paginators import MyPageSize, MyPageListReaction
 from .serializers import *
 from django.db import transaction
 from django_redis import get_redis_connection #có localhost trong settings host web nhwos chỉnh
@@ -200,7 +202,8 @@ class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIV
     queryset = Account.objects.all() #Xem nếu filter comfirm_status ?
     serializer_class = AccountSerializer
     pagination_class = MyPageSize
-    parser_classes = [parsers.MultiPartParser]
+    parser_classes = [parsers.MultiPartParser]# De upload FIle thì dùng
+
     def get_permissions(self):
         if self.action in ['list' ,'update' , 'partial_update','get_post_of_account']:
             return [permissions.IsAuthenticated()]
@@ -242,7 +245,7 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
     serializer_class = PostSerializer
   #Truyền vào do có tự định nghĩa PostOwner
     pagination_class =  MyPageSize
-    # lookup_field =  fk   -> là để thay đổi pk của detail -> thành fk
+
 
 
     def get_serializer_class(self):
@@ -252,18 +255,101 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
     def get_permissions(self):
         if self.action in ['destroy','update','partial_update']:
             return [PostOwner()]
-        if  self.action in ['list','retrieve','create']:
+        if  self.action in ['list','retrieve','create','get_comments_in_post','get_image_in_post','get_reaction_detail_in_post',
+                            ]:
             return [permissions.IsAuthenticated()]
         return  [permissions.AllowAny()]
     @action(methods=['get'] , detail=True,url_path='comments')
     def get_comments_in_post(self,request,pk):
         try:
-            comments = self.get_object().comments.filter(active=True).order_by('-created_date').all() #có khai báo related_name rồi
+            #get_querryset().get(pk=pk) sẽ lấy được bài viết theo pk còn get_object thì không
+            comments = self.get_queryset().get(pk=pk).comments.filter(active=True).order_by('-created_date').all() #có khai báo related_name rồi
             paginator = MyPageSize()
             paginated = paginator.paginate_queryset(comments, request)
-            return Response(CommentSerializer(paginated,many=True,context={'request':request}).data,status=status.HTTP_200_OK)
+            serializer = CommentSerializer(paginated, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
         except Exception as ex:
             return Response({'Phát hiện lỗi',str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#lấy các hình ảnh của bài viết
+    @action(methods=['get'],detail=True,url_path='images')
+    def get_image_in_post(self,request,pk):
+        try:
+            post_images =self.get_queryset().get(pk=pk).post_images.filter(active=True).all()
+            paginator = MyPageSize()
+            paginated = paginator.paginate_queryset(post_images,request)
+            serializer = PostImageSerializer(paginated,many=True,context={'request':request})
+            return paginator.get_paginated_response(serializer.data)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#lấy reaction -> nếu không truyền parames nào thì nó sẽ không hiện parmes đó -> đồng thời có thể lọc reaction
+    @action(methods=['get'],detail=True,url_path='reactions')
+    def get_reaction_detail_in_post(self,request,pk):
+        try:
+            reaction = request.query_params.get('reaction')
+            account_id = request.query_params.get('account')
+            post_reactions = PostReaction.objects.filter(post_id=pk) #Nếu không truyền parames gì thì nó hiện list reaction thôi
+            if reaction :
+                 post_reactions = post_reactions.filter(reaction=reaction)
+            if account_id:
+                post_reactions = post_reactions.filter(account_id=account_id)
+            paginator = MyPageListReaction()
+            paginated = paginator.paginate_queryset(post_reactions, request)
+            return Response(PostReactionSerializer(paginated,many=True,context={'request':request}).data,status=status.HTTP_200_OK)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+# #Dem tat ca reaction tren 1 post
+#     @action(methods=['get'],detail=True,url_path='count_reaction')
+#     def get_count_reaction(self,request,pk):
+#         try:
+#             reaction_count = PostReaction.objects.filter(post_id=pk).count()
+#             return Response(reaction_count,status=status.HTTP_200_OK)
+#         except Exception as ex:
+#             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# #Lấy loại cảm xúc trên 1 bài viết
+#     @action(methods=['get'],detail=True,url_path="count_type_reaction")
+#     def get_count_type_reaction(self,request,pk):
+#         try:
+#             #annotate -> truyền id để nó đếm số lượng theo id -> nếu 1 post có nhiều postreaction có thể dùng annostate để đếm cảm xúc
+#             reaction_type = PostReaction.objects.filter(post_id=pk).annotate(count=Count('id')).values('reaction','count')
+#             return Response(reaction_type,status=status.HTTP_200_OK)
+#         except Exception as ex:
+#             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#             #values -> chọn thuộc tính lấy
+# #dem so binh luan
+#     @action(methods=['get'],detail=True,url_path="count_comment")
+#     def get_count_comment(self,request,pk):
+#         try:
+#             count_comment = Comment.objects.filter(post_id=pk).count()
+#             return Response(count_comment,status=status.HTTP_200_OK)
+#         except Exception as ex:
+#             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#Tối ưu bằng gộp và dùng annotate để group_by -> để chia các reaction có cùng post_id -> thành 1 group_by reaction -> từng loại riêng với count từng loại
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            post =self.get_object()
+            comment_count = Comment.objects.filter(post_id = post.id).count()
+            #Đến từng loại cảm xúc -> kèm theo số lượng
+            reactions =PostReaction.objects.filter(post_id=post.id).annotate(count=Count('reaction')).values('reaction','count') #ở đây nó truyền account thì nó sẽ đếm theo account ,
+            total_reactions = PostReaction.objects.filter(post_id=post.id).count()
+            serializer = self.get_serializer(post)
+            data = serializer.data
+            data['comment_count'] =comment_count
+            data['reactions'] = reactions
+            data['total_reactions'] = total_reactions
+            return Response(data,status=status.HTTP_200_OK)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#Reaction -> danh sách cảm xúc trong enum
+class ReactionViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView):
+    queryset = Reaction.objects.filter(active=True).all()
+    serializer_class = ReactionSerializer
+#Post -> Việc xử lý Thả cảm xúc , và hủy
+class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.DestroyAPIView):
+    queryset = Post.objects.filter(active=True).all()
 
 
 

@@ -7,8 +7,10 @@ router  = routers.DefaultRouter()
 
 router.register('users',UserViewSet,basename='users') #basename dùng trên FE
 router.register('accounts',AccountViewSet,basename='accounts')
-router.register('alumni-accounts',AlumniAccountViewSet,basename='alumni-accounts')
+router.register('alumni_accounts',AlumniAccountViewSet,basename='alumni_accounts')
 router.register('post',PostViewSet,basename='post')
+router.register('reaction',ReactionViewSet,basename='reaction')
+router.register('post_reaction',PostReactionViewSet,basename='post_reaction')
 
 urlpatterns = [
     path('',include(router.urls)),
