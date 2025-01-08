@@ -343,18 +343,52 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#Reaction -> danh sách cảm xúc trong enum
-class ReactionViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView):
-    queryset = Reaction.objects.filter(active=True).all()
-    serializer_class = ReactionSerializer
 #Post -> Việc xử lý Thả cảm xúc , và hủy
-class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.DestroyAPIView):
-    queryset = Post.objects.filter(active=True).all()
+class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.DestroyAPIView ,generics.UpdateAPIView):
+    queryset = PostReaction.objects.all()
+    serializer_class =  PostReactionSerializer
+    pagination_class =  MyPageSize
 
+    def get_permissions(self):
+        if self.action in ['partial_update','destroy']:
+            return [PostReactionOwner()]
+        else: 
+            return [permissions.IsAuthenticated()]
+    def get_serializer_class(self):
+        if self.action in ['create','update','partial_update']:
+            return PostReactionForCreateUpdateSerializer
+        return self.serializer_class
+#Create
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            account = request.user.account
+            post = serializer.validated_data['post'] #lấy post bên serializer
+            existing_reaction = PostReaction.objects.filter(account=account,post=post) #Kiểm tra có trùng cảm xúc không
+            if existing_reaction: #Có thì parse qua bên serializers vào reaction
+                 existing_reaction.reaction = serializer.validated_data['reaction']
+                 existing_reaction.save()
+                 return Response(self.get_serializer(existing_reaction).data, status=status.HTTP_200_OK)
+            else:
+                serializer.save(account=account)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#Sửa lại cảm xúc
+    def partial_update(self, request, *args, **kwargs):
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=True)
 
-
-
-
-
+            if serializer.is_valid():
+                # Cập nhật cảm xúc
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #Xóa cả xúc -> nhấn đúp
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()  # Lấy đối tượng cần xóa
+        instance.delete()  # Xóa đối tượng
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 

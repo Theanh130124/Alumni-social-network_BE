@@ -18,4 +18,7 @@ class PostOwner(BasePermission):
         if view.action in ['update', 'partial_update']:
             return request.user == post.account.user
         return False
-
+#Người thả mới được update và xóa
+class PostReactionOwner(BasePermission):
+    def has_object_permission(self, request, view, post_reaction):
+        return request.user.account == post_reaction.account

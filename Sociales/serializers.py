@@ -83,9 +83,29 @@ class PostImageSerializer(serializers.ModelSerializer):
         model = PostImage
         fields = '__all__'
 
+
+
+class AccountForPostReaction(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        fields = ['user_id', 'avatar', 'cover_avatar']
+class PostForPostReaction(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ["post_content"]
+#Có thể lấy ảnh ra -> lấy được bình luận đó vừa bình luận vào bài viết nào
 class PostReactionSerializer(serializers.ModelSerializer):
+        #Viết như thế -> thì khi trả ve account -> nó trả chi tiet chu khong tra account_id :
+        account = AccountForPostReaction()
+        post = PostForPostReaction()
+        class Meta:
+            model = PostReaction
+            fields = '__all__'
+
+class PostReactionForCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostReaction
-        fields = '__all__'
+        fields = ['id','reaction','post','account']
+
 
 
