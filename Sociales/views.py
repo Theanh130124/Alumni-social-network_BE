@@ -4,7 +4,7 @@ from asyncio import Future
 
 from functools import partial
 from lib2to3.fixes.fix_input import context
-from multiprocessing.reduction import duplicate
+
 from pickle import FALSE
 
 import cloudinary.uploader
@@ -208,11 +208,12 @@ class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIV
         if self.action in ['list' ,'update' , 'partial_update','get_post_of_account']:
             return [permissions.IsAuthenticated()]
         return [permissions.AllowAny()]
-
+#Xử lý uploadcloud
     def perform_update(self, serializer):
         fields = ['avatar','cover_avatar']
         upload_res = FileUploadHelper.upload_files(self.request,fields=fields)
         serializer.save(**upload_res)
+
 
     def update(self, request, *args, **kwargs):
         return super().update(request,*args,**kwargs)
@@ -246,6 +247,7 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
   #Truyền vào do có tự định nghĩa PostOwner
     pagination_class =  MyPageSize
 
+    #Thêm vậy để lên trên admin upload -> thì nó sẽ trả ra đường dẫn cloudinary
 
 
     def get_serializer_class(self):
@@ -355,8 +357,11 @@ class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.Destr
         else: 
             return [permissions.IsAuthenticated()]
     def get_serializer_class(self):
-        if self.action in ['create','update','partial_update']:
-            return PostReactionForCreateUpdateSerializer
+        if self.action in ['update','partial_update']:
+            return PostReactionForUpdateSerializer
+        if self.action == 'create':
+            return PostReactionForCreateSerializer
+
         return self.serializer_class
 #Create
     def create(self, request, *args, **kwargs):
@@ -364,7 +369,7 @@ class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.Destr
         if serializer.is_valid():
             account = request.user.account
             post = serializer.validated_data['post'] #lấy post bên serializer
-            existing_reaction = PostReaction.objects.filter(account=account,post=post) #Kiểm tra có trùng cảm xúc không
+            existing_reaction = PostReaction.objects.filter(account=account,post=post).first() #Kiểm tra có trùng cảm xúc không
             if existing_reaction: #Có thì parse qua bên serializers vào reaction
                  existing_reaction.reaction = serializer.validated_data['reaction']
                  existing_reaction.save()
@@ -391,4 +396,52 @@ class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.Destr
         instance.delete()  # Xóa đối tượng
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+#Bình luận
+class CommentViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.UpdateAPIView,generics.DestroyAPIView):
+    queryset = Comment.objects.filter(active=True).all()
+    serializer_class = CommentSerializer
+    parser_classes = [parsers.MultiPartParser]
+#Xem côi còn khóa comment_lock thì không bình luận được
+    def get_permissions(self):
+        if self.action in ['partial_update','destroy','update']:
+            return [CommentOwner()]
+        else:
+            return [permissions.IsAuthenticated()]
 
+    def get_serializer_class(self):
+        if self.action in ['update','partial_update']:
+            return CommentForUpdateSerializer
+        if self.action == 'create':
+            return CommentForCreateSerializer
+
+    def perform_update(self, serializer):
+        fields = ['comment_image_url']
+        upload_res = FileUploadHelper.upload_files(self.request,fields=fields)
+        serializer.save(**upload_res)
+#2 thằng này là riêng nha -> dùng lại của mixin
+    def perform_create(self, serializer):
+        fields = ['comment_image_url']
+        upload_res = FileUploadHelper.upload_files(self.request, fields=fields)
+        serializer.save(**upload_res)
+
+#Bài đăng dạng thư mời -> để đăng sự kiện của trường mời các cựu sinh viên
+
+class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView,generics.UpdateAPIView,generics.DestroyAPIView):
+    queryset =  PostInvitation.objects.filter(active=True).all()
+    serializer_class =  PostInvitationSerializer
+    pagination_class =  [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PostInvitationCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return PostInvitationUpdateSerializer
+        return self.serializer_class
+    #Bài đăng chỉ mời cựu sinh viên
+    @action(methods=['get'],detail=True,url_path='alumni_account')
+    def get_alumni(self,request,pk):
+        try:
+            alumni_acc =self.get_object().filter(active=True).all()
+            return  Response(AlumniForInvitationSerializer(alumni_acc,many=True ,context={'request': request}).data ,status=status.HTTP_200_OK)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

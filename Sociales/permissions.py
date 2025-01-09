@@ -22,3 +22,12 @@ class PostOwner(BasePermission):
 class PostReactionOwner(BasePermission):
     def has_object_permission(self, request, view, post_reaction):
         return request.user.account == post_reaction.account
+#Chủ post , người comment hoặc admin sẽ xóa được
+class CommentOwner(BasePermission):
+    def has_object_permission(self, request, view, comment):
+        if view.action == 'destroy':
+            return request.user == comment.post.account.user \
+                or request.user == comment.account.user \
+                or request.user.account.role  == UserRole.ADMIN
+        elif view.action in ['update', 'partial_update']:
+            return request.user == comment.account.user

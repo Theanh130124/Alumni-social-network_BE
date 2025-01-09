@@ -203,7 +203,7 @@ class PostInvitation(BaseModel):
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     post = models.OneToOneField(Post , on_delete=models.CASCADE)
-    accounts = models.ManyToManyField(Account,blank=True)
+    accounts_alumni = models.ManyToManyField(AlumniAccount,blank=True) #-> Xem ở đâu có nên đổi AlumniAccount không
 # #Lời mời vào nhóm
 class InvitationGroup(BaseModel):
     invitation_group_name = models.CharField(max_length=255)

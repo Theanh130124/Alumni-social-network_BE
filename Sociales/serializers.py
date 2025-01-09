@@ -9,6 +9,8 @@ from urllib3 import request
 #Serializer validate + json -> python object
 
 from .models import *
+from .permissions import CommentOwner
+
 
 #Các trường update , create muốn validate kĩ thì def viết bên này bên view gọi action qua
 class UserSerializer(serializers.ModelSerializer):
@@ -69,11 +71,27 @@ class CreatePostSerializer(serializers.ModelSerializer):
         validated_data['account'] = user.account
         return  super().create(validated_data)
 
+    #Comment-----------
+class CommentForCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ['id', 'comment_content', 'comment_image_url', 'account', 'post']
+
+class CommentForUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ['id', 'comment_content', 'comment_image_url',]
+
+
 class CommentSerializer(serializers.ModelSerializer):
+    comment_image_url = serializers.SerializerMethodField(source='comment_image_url')
+
+
     class Meta:
         model = Comment
         fields = '__all__'
 
+#------------
 class ReactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reaction
@@ -102,10 +120,38 @@ class PostReactionSerializer(serializers.ModelSerializer):
             model = PostReaction
             fields = '__all__'
 
-class PostReactionForCreateUpdateSerializer(serializers.ModelSerializer):
+class PostReactionForCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostReaction
         fields = ['id','reaction','post','account']
 
+class PostReactionForUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostReaction
+        fields = ['id','reaction','post']
+
+#PostInvitation ---
+
+class PostInvitationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostInvitation
+        fields = '__all__'
+class PostInvitationCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PostInvitation
+        fields = ['id', 'event_name', 'start_time', 'end_time', 'post']
 
 
+class PostInvitationUpdateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PostInvitation
+        fields = ['id', 'event_name', 'start_time', 'end_time']
+
+class AlumniForInvitationSerializer(serializers.ModelSerializer):
+    account = AccountSerializer
+
+    class Meta:
+        model = AlumniAccount
+        fields = '__all__'
