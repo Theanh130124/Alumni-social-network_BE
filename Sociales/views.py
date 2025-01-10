@@ -9,6 +9,7 @@ from pickle import FALSE
 
 import cloudinary.uploader
 from cloudinary.cache.responsive_breakpoints_cache import instance
+from cloudinary.exceptions import NotFound
 from cloudinary.uploader import upload
 from django.contrib.admin.templatetags.admin_list import pagination
 from django.core.exceptions import ObjectDoesNotExist
@@ -426,18 +427,25 @@ class CommentViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.UpdateAPIV
 
 #Bài đăng dạng thư mời -> để đăng sự kiện của trường mời các cựu sinh viên
 
+#Destroy -> xóa nguyên bài , update -> update lại thời gian kết thúc
 class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView,generics.UpdateAPIView,generics.DestroyAPIView):
-    queryset =  PostInvitation.objects.filter(active=True).all()
+    queryset =  PostInvitation.objects.all()
     serializer_class =  PostInvitationSerializer
-    pagination_class =  [permissions.IsAuthenticated]
+    pagination_class =  MyPageSize
 
+
+    def get_permissions(self):
+        if self.action in ['partial_update','destroy' , 'create' ,'update','get_alumni','invited_alumni','deleted_alumni']:
+            return [IsAdminUserRole()] #Chỉ có admin
+        else:
+            return [permissions.IsAuthenticated()]
     def get_serializer_class(self):
         if self.action == 'create':
             return PostInvitationCreateSerializer
         if self.action in ['update', 'partial_update']:
             return PostInvitationUpdateSerializer
         return self.serializer_class
-    #Bài đăng chỉ mời cựu sinh viên
+    #Bài đăng chỉ mời cựu sinh viên -> xem danh sách cuự sinh viên đã mời
     @action(methods=['get'],detail=True,url_path='alumni_account')
     def get_alumni(self,request,pk):
         try:
@@ -445,3 +453,38 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
             return  Response(AlumniForInvitationSerializer(alumni_acc,many=True ,context={'request': request}).data ,status=status.HTTP_200_OK)
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #Mời cựu sinh viên
+    @action(methods=['post'],detail=True,url_path='alumni')
+    def invited_alumni(self,request,pk):
+        try:
+            with transaction.atomic():
+                post_invitation = self.get_object()
+                #test Truyền id vào
+                list_alumni_id = request.data.get('list_alumni_id',[])
+                list_alumni_id = set(list_alumni_id)
+                account = AlumniAccount.objects.filter(id__in=list_alumni_id) #So sánh với set nên id__in
+                if account.count() != len(list_alumni_id):
+                    missing_ids= set(list_alumni_id) - set(account.values_list('id',flat=True)) #flat true để trả list
+                    raise NotFound(f'Tài khoản với ID {missing_ids} không tồn tại')
+                post_invitation.account.add(*account)
+                post_invitation.save()
+                return  Response(PostInvitationSerializer(post_invitation).data,status=status.HTTP_201_CREATED)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    @action(methods=['delete'],detail=True,url_path='alumni_account')
+    def deleted_alumni(self,request,pk):
+        try:
+            post_invitation = self.get_object()
+            list_alumni_id = request.data.get('list_alumni_id',[])
+            account = AlumniAccount.objects.filter(id__in=list_alumni_id)
+            if account.count() != list_alumni_id.count():
+                missing_ids = set(list_alumni_id) - set(account.values_list('id', flat=True))  # flat true để trả list
+                raise NotFound(f'Tài khoản với ID {missing_ids} không tồn tại')
+            post_invitation.account.remove(*account)
+            post_invitation.save()
+            return Response(PostInvitationSerializer(post_invitation).data, status=status.HTTP_204_NO_CONTENT)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
