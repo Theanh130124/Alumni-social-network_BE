@@ -428,7 +428,7 @@ class CommentViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.UpdateAPIV
 #Bài đăng dạng thư mời -> để đăng sự kiện của trường mời các cựu sinh viên
 
 #Destroy -> xóa nguyên bài , update -> update lại thời gian kết thúc
-class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView,generics.UpdateAPIView,generics.DestroyAPIView):
+class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView,generics.UpdateAPIView,generics.DestroyAPIView,generics.CreateAPIView):
     queryset =  PostInvitation.objects.all()
     serializer_class =  PostInvitationSerializer
     pagination_class =  MyPageSize
@@ -461,12 +461,12 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
                 post_invitation = self.get_object()
                 #test Truyền id vào
                 list_alumni_id = request.data.get('list_alumni_id',[])
-                list_alumni_id = set(list_alumni_id)
-                account = AlumniAccount.objects.filter(id__in=list_alumni_id) #So sánh với set nên id__in
+                list_alumni_id = set(list_alumni_id) #account_id là primary key
+                account = AlumniAccount.objects.filter(account_id__in=list_alumni_id) #So sánh với set nên id__in
                 if account.count() != len(list_alumni_id):
-                    missing_ids= set(list_alumni_id) - set(account.values_list('id',flat=True)) #flat true để trả list
+                    missing_ids= set(list_alumni_id) - set(account.values_list('account_id',flat=True)) #flat true để trả list
                     raise NotFound(f'Tài khoản với ID {missing_ids} không tồn tại')
-                post_invitation.account.add(*account)
+                post_invitation.accounts_alumni.add(*account)
                 post_invitation.save()
                 return  Response(PostInvitationSerializer(post_invitation).data,status=status.HTTP_201_CREATED)
         except Exception as ex:
@@ -476,15 +476,26 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
         try:
             post_invitation = self.get_object()
             list_alumni_id = request.data.get('list_alumni_id',[])
-            account = AlumniAccount.objects.filter(id__in=list_alumni_id)
+            account = AlumniAccount.objects.filter(account_id__in=list_alumni_id)
             if account.count() != list_alumni_id.count():
-                missing_ids = set(list_alumni_id) - set(account.values_list('id', flat=True))  # flat true để trả list
+                missing_ids = set(list_alumni_id) - set(account.values_list('account_id', flat=True))  #sữa thành account_id  # flat true để trả list
                 raise NotFound(f'Tài khoản với ID {missing_ids} không tồn tại')
-            post_invitation.account.remove(*account)
+            post_invitation.accounts_alumni.remove(*account) # đã fix lại accounts_alumni
             post_invitation.save()
             return Response(PostInvitationSerializer(post_invitation).data, status=status.HTTP_204_NO_CONTENT)
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+#Bài đăng dạng khảo sát admin làm
+class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
+    queryset = PostSurvey.objects.filter(active=True).all()
+    serializer_class =  PostSurveySerializer
+    pagination_class =  MyPageSize
+    permission_classes = [IsAdminUserRole()] #Chỉ có admin mới thực hiện mọi Api class này
 
-
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreatePostSurveySerializer
+        if self.action in ['update', 'partial_update']:
+            return UpdatePostSurveySerializer
+        return self.serializer_class

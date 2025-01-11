@@ -155,3 +155,13 @@ class AlumniForInvitationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AlumniAccount
         fields = '__all__'
+
+###--------
+
+##PostSurvey
+
+class PostSurveySerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PostSurvey
+        fields = '__all__'

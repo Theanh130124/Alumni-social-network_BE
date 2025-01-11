@@ -13,10 +13,11 @@ class IsAdminUserRole(BasePermission):
 
 class PostOwner(BasePermission):
     def has_object_permission(self, request, view, post):  # Truyền post vào
+        if view.action in ['update', 'partial_update',]:
+            return request.user == post.account.user #Đã bỏ quyền admin xóa bài
         if view.action == 'destroy':
-            return request.user == post.account.user or request.user.account.role == UserRole.ADMIN
-        if view.action in ['update', 'partial_update']:
-            return request.user == post.account.user
+            return request.user == post.account.user \
+                or request.user.account.role == UserRole.ADMIN #admin cũng được xóa post
         return False
 #Người thả mới được update và xóa
 class PostReactionOwner(BasePermission):
@@ -27,7 +28,6 @@ class CommentOwner(BasePermission):
     def has_object_permission(self, request, view, comment):
         if view.action == 'destroy':
             return request.user == comment.post.account.user \
-                or request.user == comment.account.user \
-                or request.user.account.role  == UserRole.ADMIN
+                or request.user == comment.account.user  #Đã bỏ quyền admin xóa comment
         elif view.action in ['update', 'partial_update']:
             return request.user == comment.account.user

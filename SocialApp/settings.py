@@ -74,7 +74,7 @@ REST_FRAMEWORK = {
 
 #Thêm vào để setup lại hiệu lực token
 OAUTH2_PROVIDER = {
-    'ACCESS_TOKEN_EXPIRE_SECONDS': 86400,  #Một ngày
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 864000,  #Một ngày  -> đã chuyển thành 10 ngày nữa nhớ fix lại
 
 }
 
