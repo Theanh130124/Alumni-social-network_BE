@@ -5,7 +5,7 @@ from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 from rest_framework.views import APIView
 from urllib3 import request
-
+from django.utils import timezone
 #Serializer validate + json -> python object
 
 from .models import *
@@ -39,6 +39,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         if password:
             instance.set_password(password)
+            instance.password_changed_at = timezone.now() #Nếu người dùng đổi pass thì set lại time
         return super().update(instance, validated_data) #gọi update của ModelSerializer -> update trừ pass
 
 #Dành cho update
@@ -165,3 +166,19 @@ class PostSurveySerializer(serializers.ModelSerializer):
     class Meta:
         model = PostSurvey
         fields = '__all__'
+
+
+class PostSurveyCreateSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='pk', read_only=True)
+
+    class Meta:
+        model = PostSurvey
+        fields = ['id', 'post_survey_title', 'start_time', 'end_time', 'post']
+
+#Xử lý cái is_closed
+class PostSurveyUpdateSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='pk', read_only=True)
+
+    class Meta:
+        model = PostSurvey
+        fields = ['id', 'post_survey_title', 'start_time', 'end_time', 'is_closed']

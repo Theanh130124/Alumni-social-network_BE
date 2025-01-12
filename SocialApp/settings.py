@@ -40,7 +40,38 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+#Debug file
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'celery': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': '%s/SocialApp/celery_task_log.log' % BASE_DIR,
+            # 'filename': 'D:/celery.log',
+        },
+    },
+    'loggers': {
+        'celery': {
+            'handlers': ['celery'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+CELERY_IMPORTS = ('Sociales.tasks',)
+# Đặt danh sách các tasks mà Celery sẽ tìm kiếm và đăng ký
+# Message Broker (Tiện có redis
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_RESULT_EXTENDED = True
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # Application definition
 
 INSTALLED_APPS = [
@@ -57,7 +88,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg', #Swagger UI
     'oauth2_provider',
-    'cloudinary_storage' #đường dẫn cloud mặc định
+    'cloudinary_storage', #đường dẫn cloud mặc định
+    'celery',
+    'django_celery_results',
+    'django_celery_beat',
+#Côi còn COR nữa
 ]
 
 import pymysql
