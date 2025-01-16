@@ -185,3 +185,20 @@ class PostSurveyUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostSurvey
         fields = ['id', 'post_survey_title', 'start_time', 'end_time', 'is_closed']
+
+#Khảo sát
+
+
+#Chi tiet câu hỏi
+class SurveyQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyQuestion
+        fields = '__all__'
+
+
+
+
+class SurveyResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyResponse
+        fields = '__all__'

@@ -493,6 +493,8 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+# 16-01-2025
 #Bài đăng dạng khảo sát admin làm
 class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
     queryset = PostSurvey.objects.filter(active=True).all()
@@ -506,11 +508,42 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
         if self.action in ['update', 'partial_update']:
             return PostSurveyCreateSerializer
         return self.serializer_class
+    #Chi tiết câu hỏi
+    @action(methods=['get'],detail=True,url_path='survey_question')
+    def get_survey_questions(self,request,pk):
+        try:
+            survey_questions = self.get_object().survey_questions.filter(active=True).all() #Truy vấn ngược lấy ds question trong survey
+            return Response(SurveyQuestionSerializer(survey_questions, many=True, context={'request': request}).data,
+                            status=status.HTTP_200_OK)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #Tạo ra câu hỏi ->
+    @action(methods=['post'],detail=True,url_path='create_survey_question')
+    def create_survey_questions(self,request,pk):
+        try:
+            post_survey = self.get_object()
+            survey_questions = SurveyQuestion(question_content=request.data['question_content'],
+                                             post_survey=post_survey,
+            is_required = request.data['is_required'],
+            survey_question_type = request.data['survey_question_type'])
+            return Response(SurveyQuestionSerializer(survey_questions, many=True, context={'request': request}).data,
+                            status=status.HTTP_201_CREATED)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    #Thong ke tong ket khao sat
+    @action(methods=['post'],detail=True,url_path='check_survey_completed')
+    def check_survey_completed(self,request,pk):
+        try:
+            post_survey = self.get_object()
+            account = request.data.get('account')
+            survey_response = SurveyResponse.objects.get(post_survey=post_survey,account=account)
+            if survey_response:
+                return Response(SurveyResponseSerializer(survey_response).data,status=status.HTTP_200_OK)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-
-
+#Here
 
 
 
