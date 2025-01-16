@@ -7,7 +7,12 @@ from lib2to3.fixes.fix_input import context
 
 from pickle import FALSE
 
+from crontab import current_user
+from drf_yasg.utils import swagger_auto_schema
+from django.contrib.auth import logout
+from Sociales.utils import *
 import cloudinary.uploader
+from django.views.generic import View
 from cloudinary.cache.responsive_breakpoints_cache import instance
 from cloudinary.exceptions import NotFound
 from cloudinary.uploader import upload
@@ -18,7 +23,7 @@ from re import search
 from django.db.models import Count, Q
 from django.db.models.functions import TruncYear
 from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.template.defaultfilters import first
 from django.utils.decorators import method_decorator
 from rest_framework import viewsets , generics , permissions ,status ,parsers
@@ -49,6 +54,7 @@ class FileUploadHelper:
         except Exception as ex:
             raise Exception(f'Phát hiện lỗi : {str(ex)}')
 #
+
 
 
 
@@ -153,6 +159,7 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
                 user.set_password('ou@123')
                 user.save()
                 account = Account.objects.create(user=user , gender = gender , phone_number=phone_number , date_of_birth=date_of_birth )
+                send_account_creation_email(user, 'ou@123') #Chưa cài SMTP
                 return Response(AccountSerializer(account).data , status=status.HTTP_200_OK)
         except Exception as e:
             error_message = str(e)
@@ -495,7 +502,27 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
 
     def get_serializer_class(self):
         if self.action == 'create':
-            return CreatePostSurveySerializer
+            return PostSurveyCreateSerializer
         if self.action in ['update', 'partial_update']:
-            return UpdatePostSurveySerializer
+            return PostSurveyCreateSerializer
         return self.serializer_class
+
+
+
+
+
+
+
+
+
+
+class LogoutView(View):
+    def get(self,request):
+        logout(request)
+        return redirect('app:home')
+
+class HomeView(View):
+    template_name = 'login/home.html'
+    def get(self,request):
+        current_user = request.user
+        return render(request,self.template_name,{'current_user':current_user})

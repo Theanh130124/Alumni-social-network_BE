@@ -15,4 +15,7 @@ router.register('post_invitations',PostInvitationViewSet,basename='post_invitati
 
 urlpatterns = [
     path('',include(router.urls)),
+    path('home/',HomeView.as_view(),name='home'),
+    path('home/login/',LoginView.as_view()),
+    path('home/logout',LogoutView.as_view(),name='logout'),
     ]

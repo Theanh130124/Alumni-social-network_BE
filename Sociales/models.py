@@ -43,7 +43,7 @@ class SurveyQuestionType(TextChoices):
 
 #Tài khoản
 class User(AbstractUser):
-
+    password_changed_at = models.DateTimeField(null=True, blank=True)
     def __str__(self):
         return self.username
 #Pass 24h của giảng viên
