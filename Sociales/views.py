@@ -6,8 +6,13 @@ from functools import partial
 from lib2to3.fixes.fix_input import context
 
 from pickle import FALSE
+
+from crontab import current_user
+from drf_yasg.utils import swagger_auto_schema
+from django.contrib.auth import logout
 from Sociales.utils import *
 import cloudinary.uploader
+from django.views.generic import View
 from cloudinary.cache.responsive_breakpoints_cache import instance
 from cloudinary.exceptions import NotFound
 from cloudinary.uploader import upload
@@ -18,7 +23,7 @@ from re import search
 from django.db.models import Count, Q
 from django.db.models.functions import TruncYear
 from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.template.defaultfilters import first
 from django.utils.decorators import method_decorator
 from rest_framework import viewsets , generics , permissions ,status ,parsers
@@ -49,6 +54,7 @@ class FileUploadHelper:
         except Exception as ex:
             raise Exception(f'Phát hiện lỗi : {str(ex)}')
 #
+
 
 
 
@@ -500,3 +506,23 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
         if self.action in ['update', 'partial_update']:
             return PostSurveyCreateSerializer
         return self.serializer_class
+
+
+
+
+
+
+
+
+
+
+class LogoutView(View):
+    def get(self,request):
+        logout(request)
+        return redirect('app:home')
+
+class HomeView(View):
+    template_name = 'login/home.html'
+    def get(self,request):
+        current_user = request.user
+        return render(request,self.template_name,{'current_user':current_user})

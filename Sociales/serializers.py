@@ -12,6 +12,9 @@ from .models import *
 from .permissions import CommentOwner
 
 
+
+
+
 #Các trường update , create muốn validate kĩ thì def viết bên này bên view gọi action qua
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

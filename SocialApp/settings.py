@@ -74,6 +74,16 @@ CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # Application definition
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'theanhtran13012004@gmail.com'
+EMAIL_HOST_PASSWORD =  'kmui vkff bpwd wyke'
+EMAIL_USE_TLS = True  # or False if not using TLS/SSL
+DEFAULT_FROM_EMAIL = 'theanhtran13012004@gmail.com'
+
+
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

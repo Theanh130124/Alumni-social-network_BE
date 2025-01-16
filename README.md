@@ -27,4 +27,8 @@ ra, quản trị viên cũng có quyền xoá bài viết đó.
 các tháng hoặc các quý, sinh viên sử dụng chartjs hoặc googlejs vẽ biểu đồ tương ứng
 
 
+<<<<<<< HEAD
 <h2>Dự án được thực hiện bởi - Trần Thế Anh (BE) Võ Duy Khang (FE)</h2>
+=======
+<h2>Dự án được thực hiện bởi - Trần Thế Anh (BE) Võ Duy Khang (FE)</h2>
+>>>>>>> b1ba82468da576c5dd96435ca684494fb8c1b2bd
