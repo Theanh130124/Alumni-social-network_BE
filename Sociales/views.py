@@ -1,12 +1,13 @@
 import json
 from asyncio import Future
-
+from rest_framework.parsers import JSONParser , MultiPartParser
 
 from functools import partial
 from lib2to3.fixes.fix_input import context
 
 from pickle import FALSE
 
+from celery.worker.control import active
 from crontab import current_user
 from drf_yasg.utils import swagger_auto_schema
 from django.contrib.auth import logout
@@ -63,7 +64,7 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
     queryset = User.objects.all()
     serializer_class = UserSerializer
     pagination_class = MyPageSize
-    parser_classes = [parsers.MultiPartParser] # De upload FIle
+    parser_classes = [JSONParser, MultiPartParser] # De upload FIle , và jSOn-> raw
     #http://127.0.0.1:8000/users/?full_name=Đào -> tìm trên họ tên không nằm trên API này dùng cho thanh tìm kiêm Fe
     def get_queryset(self):
         queryset = self.queryset
@@ -111,6 +112,8 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
     #Bật detail true được truyền id vào
     @action(methods=['post'],detail=False,url_path='create_alumni')
     def create_alumni(self,request):
+
+        parser_classes = [JSONParser, MultiPartParser]
         try:
             # Xem coi ngày tạo với ngày update
             with transaction.atomic(): #Đảm bảo xảy ra , không thì không lưu
@@ -142,7 +145,7 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
     @action(methods=['post'], detail=False , url_path='create_lecturer')
     def create_lecturer(self ,request):
         try:
-            with transaction.atomic():
+            with transaction.atomic() :
                 username = request.data.get('username')
                 #Password ou@123
                 email = request.data.get('email')
@@ -210,7 +213,7 @@ class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIV
     queryset = Account.objects.all() #Xem nếu filter comfirm_status ?
     serializer_class = AccountSerializer
     pagination_class = MyPageSize
-    parser_classes = [parsers.MultiPartParser]# De upload FIle thì dùng
+    parser_classes = [JSONParser, MultiPartParser]# De upload FIle thì dùng
 
     def get_permissions(self):
         if self.action in ['list' ,'update' , 'partial_update','get_post_of_account']:
@@ -243,7 +246,7 @@ class AlumniAccountViewSet(viewsets.ViewSet ,generics.ListAPIView , generics.Ret
     queryset = AlumniAccount.objects.all()
     serializer_class = AlumniAccountSerializer
     pagination_class = MyPageSize
-
+    parser_classes = [JSONParser, MultiPartParser]
     def get_permissions(self):
         if self.action in ['list' ,'update' , 'partial_update', 'retrieve']:
             return [permissions.IsAuthenticated()]
@@ -254,7 +257,7 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
     serializer_class = PostSerializer
   #Truyền vào do có tự định nghĩa PostOwner
     pagination_class =  MyPageSize
-
+    parser_classes = [JSONParser, MultiPartParser]
     #Thêm vậy để lên trên admin upload -> thì nó sẽ trả ra đường dẫn cloudinary
 
 
@@ -358,7 +361,7 @@ class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.Destr
     queryset = PostReaction.objects.all()
     serializer_class =  PostReactionSerializer
     pagination_class =  MyPageSize
-
+    parser_classes = [JSONParser, MultiPartParser]
     def get_permissions(self):
         if self.action in ['partial_update','destroy']:
             return [PostReactionOwner()]
@@ -408,7 +411,7 @@ class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.Destr
 class CommentViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.UpdateAPIView,generics.DestroyAPIView):
     queryset = Comment.objects.filter(active=True).all()
     serializer_class = CommentSerializer
-    parser_classes = [parsers.MultiPartParser]
+    parser_classes = [JSONParser, MultiPartParser]
 #Xem côi còn khóa comment_lock thì không bình luận được
     def get_permissions(self):
         if self.action in ['partial_update','destroy','update']:
@@ -439,6 +442,7 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
     queryset =  PostInvitation.objects.all()
     serializer_class =  PostInvitationSerializer
     pagination_class =  MyPageSize
+    parser_classes = [JSONParser, MultiPartParser]
 
 
     def get_permissions(self):
@@ -495,12 +499,13 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
 
 
 # 16-01-2025
-#Bài đăng dạng khảo sát admin làm
+#Bài đăng dạng khảo sát admin làm - Chua test
 class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
     queryset = PostSurvey.objects.filter(active=True).all()
     serializer_class =  PostSurveySerializer
     pagination_class =  MyPageSize
     permission_classes = [IsAdminUserRole()] #Chỉ có admin mới thực hiện mọi Api class này
+    parser_classes = [JSONParser]
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -543,7 +548,35 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#Here
+#Danh sách chi tiết câu hỏi : -> Chua test
+
+class SurveyQuestionViewSet(viewsets.ViewSet,generics.ListAPIView ,generics.UpdateAPIView,generics.CreateAPIView):
+    queryset = SurveyQuestion.objects.filter(active=True).all()
+    serializer_class = SurveyQuestionSerializer
+    pagination_class = MyPageSize
+    permission_classes = [IsAdminUserRole()] #Cũng chỉ admin mới được thêm câu hỏi
+    parser_classes = [JSONParser]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateSurveyQuestionSerializer
+        if self.action in ['update', 'partial_update']:
+            return UpdateSurveyQuestionSerializer
+        return self.serializer_class
+#Trả lời cho các câu hỏi trắc nghiệm -> Chua test
+# class SurveyQuestionOptionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics):
+#     queryset = SurveyQuestionOption.objects.filter(active=True).all()
+#     serializer_class = SurveyQuestionOptionSerializer
+#     pagination_class = MyPageSize
+#     permissions_class = [permissions.IsAuthenticated()]
+#
+#     def get_serializer_class(self):
+#         if self.action == 'create':
+#             return CreateSurveyQuestionOptionSerializer
+#         if self.action in ['update', 'partial_update']:
+#             return UpdateSurveyQuestionOptionSerializer
+#         return self.serializer_class
+
 
 
 

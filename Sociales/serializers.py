@@ -196,9 +196,36 @@ class SurveyQuestionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class CreateSurveyQuestionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SurveyQuestion
+        fields = ['id', 'is_required', 'question_content', 'question_order', 'post_survey', 'survey_question_type']
+
+class UpdateSurveyQuestionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SurveyQuestion
+        fields = ['id', 'is_required', 'question_content', 'question_order', ] #khong cho sua survey_question_type ->
 
 
 class SurveyResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = SurveyResponse
         fields = '__all__'
+
+
+
+##---SurveyQuestionOption
+class SurveyQuestionOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyQuestionOption
+        fields = '__all__'
+class CreateSurveyQuestionOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyQuestionOption
+        fields = ['id','question_option_value','question_option_order','survey_question','survey_answers']
+class UpdateSurveyQuestionOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyQuestionOption
+        fields = ['id','question_option_value','question_option_order']

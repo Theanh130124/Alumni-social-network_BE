@@ -159,7 +159,7 @@ class PostSurvey(BaseModel):
 class SurveyQuestion(BaseModel):
     question_content = models.TextField()
     question_order = models.IntegerField()
-    is_required = models.BooleanField(default=False)
+    is_required = models.BooleanField(default=False) #Hoàn thành hay chưa
     post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE ,related_name='survey_questions')
     survey_question_type = models.CharField(
         max_length=50,
@@ -168,16 +168,16 @@ class SurveyQuestion(BaseModel):
     )
     def __str__(self):
         return self.question_content
-# #Lựa chọn
+#Trả lời cho các câu hỏi trắc nghiệm
 class SurveyQuestionOption(models.Model):
-    question_option_value = models.TextField()
-    question_option_order = models.IntegerField()
+    question_option_value = models.TextField() #A B C D
+    question_option_order = models.IntegerField()#1 , 2 ,3 ,4
     survey_question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE)
     survey_answers = models.ManyToManyField('SurveyAnswer', blank=True)
 
     def __str__(self):
         return self.question_option_value
-# #Tra ve KhaoSat
+#Trả về để xem người đó đã làm khảo sát chưa -> tính tỉ lệ người hoàn thành
 class SurveyResponse(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE)
@@ -185,7 +185,7 @@ class SurveyResponse(models.Model):
     def __str__(self):
         return self.account.user.username + ' - ' + self.post_survey.post_survey_title
 
-# #Noi dung cau tra loi
+#Câu trả lời dành cho các câu tự luận
 class SurveyAnswer(models.Model):
     answer_value = models.CharField(max_length=1000, null=True, blank=True)
     survey_question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE)
