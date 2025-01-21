@@ -4,8 +4,8 @@ from django.contrib.auth.models import AbstractUser
 from cloudinary.models import CloudinaryField
 from django.template.defaultfilters import default
 from django.db.models import TextChoices
-
-
+from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 class BaseModel(models.Model):
     created_date = models.DateField(auto_now_add=True, null=True)
@@ -146,20 +146,24 @@ class Comment(BaseModel):
 # #Post Khảo sát
 class PostSurvey(BaseModel):
     post_survey_title = models.CharField(max_length=255)
-    start_time = models.DateTimeField()
+    start_time = models.DateTimeField(default=timezone.now)
     end_time = models.DateTimeField()
     is_closed = models.BooleanField(default=False)
     post = models.OneToOneField(Post, on_delete=models.CASCADE, primary_key=True)
-
+#-> Validate việc lúc tạo còn lúc update validate bên view
+    def clean(self):
+        # Kiểm tra nếu end_time nhỏ hơn start_time
+        if self.end_time < self.start_time:
+            raise ValidationError("Thời gian kết thúc phải lớn hơn thời gian bắt đầu .")
     def __str__(self):
         return self.post_survey_title
 
 
-# #Câu hỏi
+# #Câu hỏi ở trên đầu -> vd : OOp là gì ?
 class SurveyQuestion(BaseModel):
     question_content = models.TextField()
     question_order = models.IntegerField()
-    is_required = models.BooleanField(default=False) #Hoàn thành hay chưa
+    is_required = models.BooleanField(default=False) #bắt buoc trả lời
     post_survey = models.ForeignKey(PostSurvey, on_delete=models.CASCADE ,related_name='survey_questions')
     survey_question_type = models.CharField(
         max_length=50,
@@ -170,9 +174,9 @@ class SurveyQuestion(BaseModel):
         return self.question_content
 #Trả lời cho các câu hỏi trắc nghiệm
 class SurveyQuestionOption(models.Model):
-    question_option_value = models.TextField() #A B C D
+    question_option_value = models.TextField() #A.Open objects p  B...  C... D
     question_option_order = models.IntegerField()#1 , 2 ,3 ,4
-    survey_question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE)
+    survey_question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE) #->thuoc cau hỏi
     survey_answers = models.ManyToManyField('SurveyAnswer', blank=True)
 
     def __str__(self):
@@ -187,7 +191,7 @@ class SurveyResponse(models.Model):
 
 #Câu trả lời dành cho các câu tự luận
 class SurveyAnswer(models.Model):
-    answer_value = models.CharField(max_length=1000, null=True, blank=True)
+    answer_value = models.CharField(max_length=1000, null=True, blank=True) #Trả lời 1 câu
     survey_question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE)
     survey_response = models.ForeignKey(SurveyResponse, on_delete=models.CASCADE)
 

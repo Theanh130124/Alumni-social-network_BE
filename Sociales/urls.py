@@ -13,6 +13,7 @@ router.register('post_reaction',PostReactionViewSet,basename='post_reaction')
 router.register('comment',CommentViewSet,basename='comment')
 router.register('post_invitations',PostInvitationViewSet,basename='post_invitations')
 router.register('post_survey',PostSurveyViewSet,basename='post_survey')
+router.register('survey_question',SurveyQuestionViewSet,basename='survey_question')
 urlpatterns = [
     path('',include(router.urls)),
     path('home/',HomeView.as_view(),name='home'),

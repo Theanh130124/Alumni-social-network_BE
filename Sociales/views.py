@@ -6,6 +6,7 @@ from functools import partial
 from lib2to3.fixes.fix_input import context
 
 from pickle import FALSE
+from django.db.models import Max
 
 from celery.worker.control import active
 from crontab import current_user
@@ -456,6 +457,29 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
         if self.action in ['update', 'partial_update']:
             return PostInvitationUpdateSerializer
         return self.serializer_class
+    #Tạo bài đăng lời mời sẳn tạo post
+    def create(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                invitation_data = request.data
+                post_content = invitation_data.get('post_content','Bài đăng mời tham gia sự kiện') #Tự động là vậy
+                comment_lock = invitation_data.get('comment_lock',False)
+                account_id = invitation_data.get('account_id')
+            post = Post.objects.create(
+            post_content=post_content,
+            comment_lock=comment_lock,
+            account_id=account_id,
+            )
+            invitation = PostInvitation.objects.create(
+            post=post, #Lọc bỏ 3 trường trong post ra khỏi post_invitation
+            **{key: invitation_data[key] for key in invitation_data if
+               key not in ['post_content', 'comment_lock', 'account_id']}
+            )
+            serializer = self.get_serializer(invitation, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as ex:
+            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     #Bài đăng chỉ mời cựu sinh viên -> xem danh sách cuự sinh viên đã mời
     @action(methods=['get'],detail=True,url_path='alumni_account')
     def get_alumni(self,request,pk):
@@ -464,7 +488,7 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
             return  Response(AlumniForInvitationSerializer(alumni_acc,many=True ,context={'request': request}).data ,status=status.HTTP_200_OK)
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    #Mời cựu sinh viên
+    #Mời cựu sinh viên  -> sẳn tạo bài viết lời mời luôn -> gộp API lại
     @action(methods=['post'],detail=True,url_path='alumni')
     def invited_alumni(self,request,pk):
         try:
@@ -499,13 +523,49 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
 
 
 # 16-01-2025
-#Bài đăng dạng khảo sát admin làm - Chua test
-class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
+#Bài đăng dạng khảo sát admin làm -> Xử lý không đồng bộ trên Fe để tạo được bài viết trc rồi -> tạo ds câu hỏi
+class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPIView,generics.UpdateAPIView):
     queryset = PostSurvey.objects.filter(active=True).all()
     serializer_class =  PostSurveySerializer
     pagination_class =  MyPageSize
-    permission_classes = [IsAdminUserRole()] #Chỉ có admin mới thực hiện mọi Api class này
-    parser_classes = [JSONParser]
+    permission_classes = [IsAdminUserRole] #Chỉ có admin mới thực hiện mọi Api class này
+    parser_classes = [JSONParser,MultiPartParser]
+
+    def create(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                invitation_data = request.data
+                post_content = invitation_data.get('post_content', 'Bài đăng câu hỏi khảo sát')  # Tự động là vậy
+                comment_lock = invitation_data.get('comment_lock', False)
+                account_id = invitation_data.get('account_id')
+            post = Post.objects.create(
+                post_content=post_content,
+                comment_lock=comment_lock,
+                account_id=account_id,
+            )
+            survey = PostSurvey.objects.create(
+                post=post,  # Lọc bỏ 3 trường trong post ra khỏi post_invitation
+                **{key: invitation_data[key] for key in invitation_data if
+                   key not in ['post_content', 'comment_lock', 'account_id']}
+            )
+            serializer = self.get_serializer(survey, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as ex:
+            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            post_survey = self.get_object()
+            # if post_survey.end_time <= post_survey.start_time:
+            #     raise ValidationError("Ngày kết thúc phải sau ngày bắt đầu ")
+            # if timezone.now() > post_survey.end_time:
+            #     raise ValidationError("Không thể cập nhật câu hỏi vì quá thời gian cho phép")
+            return super().update(request,*args,**kwargs)
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as ex:
+            return Response({"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -513,7 +573,7 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
         if self.action in ['update', 'partial_update']:
             return PostSurveyCreateSerializer
         return self.serializer_class
-    #Chi tiết câu hỏi
+    #Lấy các câu hỏi của 1 post_survey theo id post
     @action(methods=['get'],detail=True,url_path='survey_question')
     def get_survey_questions(self,request,pk):
         try:
@@ -526,12 +586,18 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
     @action(methods=['post'],detail=True,url_path='create_survey_question')
     def create_survey_questions(self,request,pk):
         try:
+
             post_survey = self.get_object()
+            #Xử lý question_order tự động tăng
+            last_qes = SurveyQuestion.objects.filter(post_survey=post_survey).aggregate(Max('question_order'))
+            next_qes = last_qes['question_order__max'] + 1 if last_qes['question_order__max'] is not None else 1 # Không có thì là câu hỏi 1
             survey_questions = SurveyQuestion(question_content=request.data['question_content'],
+                                              question_order=next_qes, #Thứ tự câu hỏi
                                              post_survey=post_survey,
-            is_required = request.data['is_required'],
-            survey_question_type = request.data['survey_question_type'])
-            return Response(SurveyQuestionSerializer(survey_questions, many=True, context={'request': request}).data,
+            is_required = request.data['is_required'], #Bắt buộc tra lời
+            survey_question_type = request.data['survey_question_type']) #Có cần check lại này không ?
+            survey_questions.save()
+            return Response(SurveyQuestionSerializer(survey_questions, context={'request': request}).data,
                             status=status.HTTP_201_CREATED)
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -548,14 +614,15 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView):
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#Danh sách chi tiết câu hỏi : -> Chua test
 
-class SurveyQuestionViewSet(viewsets.ViewSet,generics.ListAPIView ,generics.UpdateAPIView,generics.CreateAPIView):
+#Các câu hỏi -> Có thể sửa lại -> tạo ra
+
+class SurveyQuestionViewSet(viewsets.ViewSet,generics.ListAPIView ,generics.UpdateAPIView):
     queryset = SurveyQuestion.objects.filter(active=True).all()
     serializer_class = SurveyQuestionSerializer
     pagination_class = MyPageSize
-    permission_classes = [IsAdminUserRole()] #Cũng chỉ admin mới được thêm câu hỏi
-    parser_classes = [JSONParser]
+    permission_classes = [IsAdminUserRole] #Cũng chỉ admin mới được thêm câu hỏi
+    parser_classes = [JSONParser,MultiPartParser]
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -563,6 +630,21 @@ class SurveyQuestionViewSet(viewsets.ViewSet,generics.ListAPIView ,generics.Upda
         if self.action in ['update', 'partial_update']:
             return UpdateSurveyQuestionSerializer
         return self.serializer_class
+    #Update lại câu hỏi chỉ trong khoảng thời gian chưa hết end-time
+    def update(self, request, *args, **kwargs):
+        try:
+            survey_question = self.get_object()
+            post_survey = survey_question.post_survey
+
+            if timezone.now() > post_survey.end_time:
+                raise ValidationError("Không thể cập nhật câu hỏi vì quá thời gian cho phép")
+            return super().update(request,*args,**kwargs)
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as ex:
+            return Response({"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 #Trả lời cho các câu hỏi trắc nghiệm -> Chua test
 # class SurveyQuestionOptionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics):
 #     queryset = SurveyQuestionOption.objects.filter(active=True).all()
