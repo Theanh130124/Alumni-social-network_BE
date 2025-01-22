@@ -19,6 +19,7 @@ router.register('survey_response',SurveyResponseViewSet,basename='survey_respons
 router.register('survey_answer',SurveyAnswerViewSet,basename='survey_answer')
 router.register('room',RoomViewSet,basename='room')
 router.register('group',GroupViewSet,basename='group')
+router.register('message',MessageViewSet,basename='message')
 urlpatterns = [
     path('',include(router.urls)),
     path('home/',HomeView.as_view(),name='home'),

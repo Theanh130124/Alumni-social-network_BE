@@ -1,8 +1,9 @@
 import json
 from asyncio import Future
 
+from oauthlib.uri_validate import query
 from rest_framework.parsers import JSONParser , MultiPartParser
-
+from .security.security_mes import *
 from functools import partial
 from lib2to3.fixes.fix_input import context
 
@@ -770,12 +771,24 @@ class RoomViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView
         if self.action in ['partial_update']:
             return UpdateRoomSerializer
         return self.serializer_class
-    # def create(self, request, *args, **kwargs):
-    #     first_user = request.data.get('first_user')
-    #     second_user = request.data.get('second_user')
-    #
-    #     #Kiểm tra room
-    #     existing
+    def create(self, request, *args, **kwargs):
+        first_user_id = request.data.get('first_user')
+        second_user_id = request.data.get('second_user')
+
+        #Kiểm tra room
+        existing_room = Room.objects.filter(
+            Q(first_user_id=first_user_id, second_user_id=second_user_id) |
+            Q(first_user_id=second_user_id, second_user_id=first_user_id)
+        ).exists()
+        if existing_room:
+            return Response({"error": "Room already exists."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
 
 class GroupViewSet(viewsets.ViewSet, generics.ListAPIView,generics.CreateAPIView):
     queryset = Group.objects.all()
@@ -803,6 +816,62 @@ class GroupViewSet(viewsets.ViewSet, generics.ListAPIView,generics.CreateAPIView
             return Response(group_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(group_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @action(methods=['get'],detail=True,url_path='messages')
+    #Lấy các tin nhắn của chat
+    def messages(self,request,pk):
+        messages = Message.objects.filter(room_id=pk).order_by('created_date').all()
+        paginator = MyPageSize()
+        paginated = paginator.paginate_queryset(messages,request)
+        serializer = MessageSerializer(paginated,many=True)
+        serializer_data = serializer.data
+
+        for message in serializer_data:
+            content = message['content']
+            decoded_content = decode_aes(content)
+            message['content'] = decoded_content #mã hóa
+
+        return  paginator.get_paginated_response(serializer_data)
+    #Tìm đoạn chat
+    @action(methods=['post'],detail=False,url_path='find_room')
+    def find_room(self,request):
+        try:
+            first_user_id = request.data.get('first_user')
+            second_user_id = request.data.get('second_user')
+            if first_user_id and second_user_id:
+                room = Room.objects.filter(
+                        Q(first_user_id=first_user_id, second_user_id=second_user_id) |
+                        Q(first_user_id=second_user_id, second_user_id=first_user_id)
+                    )
+                return Response(RoomSerializer(room,many=True).data)
+            else:
+                return Response({'error': 'Thiếu 1 trong 2 id'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as ex :
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+class MessageViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView,generics.CreateAPIView,generics.DestroyAPIView):
+    queryset =  Message.objects.filter(active=True).all()
+    serializer_class = MessageSerializer
+    pagination_class = MyPageSize
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        # print(queryset) # Test
+        serializer = MessageSerializer(queryset,many=True).data
+
+        for message in serializer:
+            # print(message['content'])
+            message['content'] = decode_aes(message['content'])
+            return  Response(serializer)
+
+
+    def perform_create(self, serializer):
+        data = self.request.data
+        raw_content = data.get('content')
+        encode_mes = encode_aes(raw_content)
+        # print(encode_mes)
+        return serializer.save(content=encode_mes)
+
+
 class LogoutView(View):
     def get(self,request):
         logout(request)
