@@ -1,5 +1,7 @@
 import json
 from asyncio import Future
+from enum import member
+
 from rest_framework.parsers import JSONParser , MultiPartParser
 
 from functools import partial
@@ -447,7 +449,8 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
 
 
     def get_permissions(self):
-        if self.action in ['partial_update','destroy' , 'create' ,'update','get_alumni','invited_alumni','deleted_alumni']:
+        if self.action in ['partial_update','destroy' , 'create' ,'update','get_alumni','invited_alumni','deleted_alumni',
+                           'invite_group','invite_all']:
             return [IsAdminUserRole()] #Chỉ có admin
         else:
             return [permissions.IsAuthenticated()]
@@ -502,10 +505,62 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
                     missing_ids= set(list_alumni_id) - set(account.values_list('account_id',flat=True)) #flat true để trả list
                     raise NotFound(f'Tài khoản với ID {missing_ids} không tồn tại')
                 post_invitation.accounts_alumni.add(*account)
+                emails = account.values_list('email', flat=True)
+                send_mail_for_post_invited(post_invitation,emails)
                 post_invitation.save()
                 return  Response(PostInvitationSerializer(post_invitation).data,status=status.HTTP_201_CREATED)
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #Mời thành viên trong group
+    @action(methods=['post'],detail=True,url_path='invite_group')
+    def invite_group(self,request,pk):
+        try:
+            with transaction.atomic():
+                post_invitation = self.get_object()
+                group_ids = request.data.get('group_ids',[])
+                groups = Group.objects.filter(id__in=group_ids)
+                if not groups.exists():
+                    return Response({'error':'Không tìm thấy nhóm'},status=status.HTTP_400_BAD_REQUEST)
+                for group in groups:
+                    # Thay đổi phương thức filter sao cho rõ ràng hơn
+                    alumni_accounts = AlumniAccount.objects.filter(account__in=group.members.all())
+
+                    #Thêm tất cả member vào nhóm
+                    post_invitation.accounts_alumni.add(*alumni_accounts)
+                for group in groups:
+                    emails = group.members.filter(account__alumniaccount__isnull=False).values_list('user__email', flat=True)
+
+                    send_mail_for_post_invited(post_invitation,emails)
+                post_invitation.save()
+                return Response(PostInvitationSerializer(post_invitation).data,status=status.HTTP_201_CREATED)
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #Mời tất cả cựu học sinh trong hệ thống
+    @action(methods=['post'], detail=True, url_path='invite_all')
+    def invite_all(self, request, pk):
+        try:
+            with transaction.atomic():
+                post_invitation = self.get_object()
+                all_accounts = AlumniAccount.objects.all()
+
+
+
+                # Thêm tất cả alumni vào post_invitation
+                post_invitation.accounts_alumni.add(*all_accounts)
+                # Lấy danh sách email
+                emails = AlumniAccount.objects.filter( #select_related -> neu can lay ca doi tuong
+                    account__user__email__isnull=False
+                ).values_list('account__user__email', flat=True)
+                #values_list -> neu flat = False va 'id' 'account' -> tra ve dict 2 truong
+
+                # Gửi email
+                send_mail_for_post_invited(post_invitation, list(emails))
+                post_invitation.save()
+
+            return Response(PostInvitationSerializer(post_invitation).data, status=status.HTTP_201_CREATED)
+        except Exception as ex:
+            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(methods=['delete'],detail=True,url_path='alumni_account')
     def deleted_alumni(self,request,pk):
         try:
@@ -645,25 +700,111 @@ class SurveyQuestionViewSet(viewsets.ViewSet,generics.ListAPIView ,generics.Upda
             return Response({"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-#Trả lời cho các câu hỏi trắc nghiệm -> Chua test
-# class SurveyQuestionOptionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics):
-#     queryset = SurveyQuestionOption.objects.filter(active=True).all()
-#     serializer_class = SurveyQuestionOptionSerializer
-#     pagination_class = MyPageSize
-#     permissions_class = [permissions.IsAuthenticated()]
-#
-#     def get_serializer_class(self):
-#         if self.action == 'create':
-#             return CreateSurveyQuestionOptionSerializer
-#         if self.action in ['update', 'partial_update']:
-#             return UpdateSurveyQuestionOptionSerializer
-#         return self.serializer_class
+#Từng câu trả lời cho các câu hỏi  -> 4 câu trả lời cho câu hỏi - Chưa test 21.01.2025
+class SurveyQuestionOptionViewSet(viewsets.ViewSet,generics.CreateAPIView,):
+    queryset = SurveyQuestionOption.objects.all()
+    serializer_class = SurveyQuestionOptionSerializer
+    pagination_class = MyPageSize
+    permissions_class = [permissions.IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser]
 
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateSurveyQuestionOptionSerializer
+        if self.action in ['update', 'partial_update']:
+            return UpdateSurveyQuestionOptionSerializer
+        return self.serializer_class
+    #Lấy câu trả lời của câu hỏi đó
+    @action(methods=['get'],detail=True,url_path='survey_answer')
+    def get_survey_answer(self,request,pk):
+        survey_answer = self.get_object().survey_answers.select_related('survey_question','survey_response').all()
+        return Response(
+            SurveyAnswerSerializerForRelated(survey_answer,many=True,context={'request': request}).data,
+            status=status.HTTP_200_OK)
+    @action(methods=['post'],detail=True,url_path='add_update_survey_answer')
+    def add_or_update_survey_answer(self,request,pk):
+        try:
+            survey_question_option = self.get_object()
+            list_survey_answer_id = request.data.get('list_survey_answer_id',[])
+            survey_answers = SurveyAnswer.objects.filter(id__in=list_survey_answer_id)
+            if survey_answers.count() != list_survey_answer_id.count():
+                missing_ids = set(list_survey_answer_id)-set(survey_answers.values_list('id', flat=True))
+                raise NotFound(f"Survey Answer with IDs {missing_ids} do not exist.")
+            survey_question_option.survey_answers.add(*survey_answers)
+            survey_question_option.save()
 
+            return Response(SurveyQuestionOptionSerializer(survey_question_option).data, status=status.HTTP_201_CREATED)
 
+        except Exception as ex:
+            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class SurveyResponseViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView):
+    queryset = SurveyResponse.objects.all()
+    serializer_class = SurveyResponseSerializer
+    pagination_class = MyPageSize
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser]
 
+class SurveyAnswerViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPIView,generics.UpdateAPIView):
+    queryset =  SurveyAnswer.objects.all()
+    serializer_class = SurveyAnswerSerializer
+    pagination_class = MyPageSize
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser]
 
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateSurveyAnswerSerializer
+        if self.action in ['update', 'partial_update']:
+            return UpdateSurveyAnswerSerializer
+        return self.serializer_class
+
+#Room
+class RoomViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView,generics.UpdateAPIView,generics.CreateAPIView):
+    queryset = Room.objects.filter(active=True).all()
+    serializer_class =RoomSerializer
+    pagination_class = MyPageSize
+    parser_classes = [JSONParser, MultiPartParser]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateRoomSerializer
+        if self.action in ['partial_update']:
+            return UpdateRoomSerializer
+        return self.serializer_class
+    # def create(self, request, *args, **kwargs):
+    #     first_user = request.data.get('first_user')
+    #     second_user = request.data.get('second_user')
+    #
+    #     #Kiểm tra room
+    #     existing
+
+class GroupViewSet(viewsets.ViewSet, generics.ListAPIView,generics.CreateAPIView):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    pagination_class = MyPageSize
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser]
+
+    #Thêm thành viên nhưng chỉ là alumni
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        member_ids = data.get('members',[])
+        alumni_accounts = Account.objects.filter(user_id__in=member_ids,role=UserRole.ALUMNI)
+        if len(alumni_accounts) != len(member_ids):
+            return Response({'error': 'Tất cả thành viên phải có role ALUMNI'}, status=status.HTTP_400_BAD_REQUEST)
+        # Tiến hành tạo nhóm
+        group_serializer = self.get_serializer(data=data)
+
+        if group_serializer.is_valid():
+            group = group_serializer.save()
+
+            # Thêm các thành viên ALUMNI vào nhóm
+            group.members.add(*alumni_accounts)
+
+            return Response(group_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(group_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 class LogoutView(View):
     def get(self,request):
         logout(request)

@@ -79,8 +79,7 @@ class RoomAdmin(admin.ModelAdmin):
     list_display = ['first_user','second_user']
 class MessageAdmin(admin.ModelAdmin):
     list_display = ['who_sent','room']
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ['title']
+
 
 my_admin_site = SocialMediaAppAdminSite(name='TheAnhAdmin')
 my_admin_site.register(User,UserAdmin)
@@ -98,7 +97,7 @@ my_admin_site.register(SurveyAnswer,SurveyAnswerAdmin)
 my_admin_site.register(PostInvitation,PostInvitationAdmin)
 my_admin_site.register(InvitationGroup,InvitationGroupAdmin)
 my_admin_site.register(Group,GroupAdmin)
-my_admin_site.register(Notification,NotificationAdmin)
+
 my_admin_site.register(Room,RoomAdmin)
 my_admin_site.register(Message,MessageAdmin)
 

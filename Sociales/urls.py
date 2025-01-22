@@ -14,6 +14,11 @@ router.register('comment',CommentViewSet,basename='comment')
 router.register('post_invitations',PostInvitationViewSet,basename='post_invitations')
 router.register('post_survey',PostSurveyViewSet,basename='post_survey')
 router.register('survey_question',SurveyQuestionViewSet,basename='survey_question')
+router.register('survey_question_option',SurveyQuestionOptionViewSet,basename='survey_question_option')
+router.register('survey_response',SurveyResponseViewSet,basename='survey_response')
+router.register('survey_answer',SurveyAnswerViewSet,basename='survey_answer')
+router.register('room',RoomViewSet,basename='room')
+router.register('group',GroupViewSet,basename='group')
 urlpatterns = [
     path('',include(router.urls)),
     path('home/',HomeView.as_view(),name='home'),

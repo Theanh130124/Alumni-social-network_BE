@@ -108,7 +108,7 @@ class Post(BaseModel):
     post_content = RichTextField()
     comment_lock = models.BooleanField(default=False)
     account = models.ForeignKey(Account,  on_delete=models.CASCADE, null=True , related_name="posts")
-    notification = models.OneToOneField('Notification', on_delete=models.SET_NULL, null=True, blank=True)
+
     def __str__(self):
         return self.post_content
 
@@ -218,34 +218,25 @@ class InvitationGroup(BaseModel):
 # #Nhóm
 class Group(BaseModel):
     name = models.CharField(max_length=255, unique=True)
-    members = models.ManyToManyField(Account, related_name='groups', blank=True)
+    members = models.ManyToManyField(Account, related_name='groups', blank=True) # Tha tu dau de AlumniAccount
 
     def __str__(self):
         return self.name
 
-#Thông báo
-class Notification(BaseModel):
-    title = models.CharField(max_length=255)
-    content = models.TextField()
-    is_sent = models.BooleanField(default=False)
-    recipients = models.ManyToManyField(Account, related_name='notifications', blank=True)
-    group_recipients = models.ManyToManyField(Group, related_name='notifications', blank=True)
-
-    def __str__(self):
-        return self.title
 
 # #Chat 2 người
 class Room(BaseModel):
     first_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='first_user_room', null=True)
     second_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='second_user_room', null=True)
-    received_message_date = models.DateTimeField(auto_now=True)
-    seen = models.BooleanField(default=False)
+    received_message_date = models.DateTimeField(auto_now=True) #Đã gửi lúc
+    seen = models.BooleanField(default=False) # đã xem
 
     class Meta:
         unique_together = ['first_user', 'second_user']
 
     def __str__(self):
         return str(self.first_user.id) + str(self.second_user.id)
+
 
 class Message(BaseModel):
     who_sent = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)

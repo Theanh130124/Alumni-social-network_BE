@@ -49,7 +49,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
-        fields = ['user_id', 'avatar', 'cover_avatar', 'role', 'phone_number', 'date_of_birth', 'gender', 'user' ]
+        fields = '__all__'
         extra_kwargs = {'role': {'read_only': True}}
 
 
@@ -59,7 +59,7 @@ class AlumniAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AlumniAccount
-        fields = ['account_id', 'alumni_account_code', 'account', 'confirm_status']
+        fields = '__all__'
         extra_kwargs = {'alumni_account_code': {'read_only': True}}
 
 class PostSerializer(serializers.ModelSerializer):
@@ -229,3 +229,61 @@ class UpdateSurveyQuestionOptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SurveyQuestionOption
         fields = ['id','question_option_value','question_option_order']
+
+
+class PostSurveySerializerForSurveyQuestion(serializers.ModelSerializer):
+    class Meta:
+        model = PostSurvey
+        fields = ['id','post_survey_title']
+
+class SurveyQuestionSerializerForSurveyAnswer(serializers.ModelSerializer):
+    post_survey = PostSurveySerializerForSurveyQuestion()
+    class Meta:
+        model = SurveyQuestion
+        fields = ['question_content', 'post_survey', 'survey_question_type']
+
+class SurveyAnswerSerializerForRelated(serializers.ModelSerializer):
+    survey_question = SurveyQuestionSerializerForSurveyAnswer()  # Nó nè
+
+    class Meta:
+        model = SurveyAnswer
+        fields = '__all__'
+class SurveyAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyAnswer
+        fields = '__all__'
+
+class CreateSurveyAnswerSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+        model = SurveyAnswer
+        fields = ['id', 'answer_value', 'survey_question', 'survey_response']
+
+
+class UpdateSurveyAnswerSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+        model = SurveyAnswer
+        fields = ['id', 'answer_value']
+class RoomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Room
+        fields = '__all__'
+class CreateRoomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Room
+        fields = ['first_user', 'second_user']
+
+
+class UpdateRoomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Room
+        fields = ['seen']
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = '__all__'
