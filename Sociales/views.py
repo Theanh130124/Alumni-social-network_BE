@@ -1,6 +1,5 @@
 import json
 from asyncio import Future
-from enum import member
 
 from rest_framework.parsers import JSONParser , MultiPartParser
 
@@ -523,12 +522,11 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
                     return Response({'error':'Không tìm thấy nhóm'},status=status.HTTP_400_BAD_REQUEST)
                 for group in groups:
                     # Thay đổi phương thức filter sao cho rõ ràng hơn
-                    alumni_accounts = AlumniAccount.objects.filter(account__in=group.members.all())
+                    alumni_accounts = AlumniAccount.objects.filter(account__groups__in=groups).distinct() #distinct() loại bỏ các TH trùng lặp
 
                     #Thêm tất cả member vào nhóm
                     post_invitation.accounts_alumni.add(*alumni_accounts)
-                for group in groups:
-                    emails = group.members.filter(account__alumniaccount__isnull=False).values_list('user__email', flat=True)
+                    emails = alumni_accounts.values_list('account__user__email', flat=True)
 
                     send_mail_for_post_invited(post_invitation,emails)
                 post_invitation.save()
