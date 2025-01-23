@@ -1,0 +1,62 @@
+body {
+    background: lightblue !important;
+}
+
+.big-title {
+    text-align: center;
+    font-weight: 500;
+    font-size: 32px;
+    margin-bottom: 3%;
+    color: black;
+}
+
+form.form {
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-evenly;
+    margin-bottom: 2%;
+}
+label{
+    width:10%
+}
+input{
+    width:20%;
+}
+form.form > button{
+    width:10%;
+}
+
+div.main-stats {
+    margin-top: 5%;
+    display: flex;
+    justify-content: space-between;
+}
+
+table.my-table-stats-post {
+    width: 49% !important;
+    color: black;
+    text-align: center;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 15px 0 rgba(0, 0, 0, 0.15);
+}
+
+table.my-table-stats-post th {
+    height: 40px;
+}
+
+table.my-table-stats-post > thead > tr > th {
+    color: grey;
+    font-weight: bold;
+}
+
+button.button-href {
+    width: 100% !important;
+    height: 50px;
+    display: inline-block;
+}
+
+div.button-href.my-button {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1%;
+}

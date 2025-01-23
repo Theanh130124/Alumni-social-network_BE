@@ -101,4 +101,25 @@ my_admin_site.register(Group,GroupAdmin)
 my_admin_site.register(Room,RoomAdmin)
 my_admin_site.register(Message,MessageAdmin)
 
+from django_celery_beat.models import PeriodicTask, IntervalSchedule, ClockedSchedule, SolarSchedule, CrontabSchedule, \
+    PeriodicTasks
+
+my_admin_site.register(PeriodicTask)
+my_admin_site.register(IntervalSchedule)
+my_admin_site.register(ClockedSchedule)
+my_admin_site.register(SolarSchedule)
+my_admin_site.register(CrontabSchedule)
+my_admin_site.register(PeriodicTasks)
+
+from django_celery_results.models import TaskResult, GroupResult
+my_admin_site.register(TaskResult)
+my_admin_site.register(GroupResult)
+
+# from Sociales.models import UserSocialAuth, Association, Code, Nonce, Partial
+# my_admin_site.register(UserSocialAuth)
+# my_admin_site.register(Association)
+# my_admin_site.register(Code)
+# my_admin_site.register(Nonce)
+# my_admin_site.register(Partial)
+
 

@@ -102,8 +102,21 @@ INSTALLED_APPS = [
     'celery',
     'django_celery_results',
     'django_celery_beat',
+    'channels', #Chat tg thực trong consumers
+    'channels_redis' #Lưu tru thong tin chat
 #Côi còn COR nữa
 ]
+
+#Channels
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 
 import pymysql
 pymysql.install_as_MySQLdb()

@@ -4,7 +4,8 @@ from django.utils import timezone
 from datetime import timedelta
 from celery import shared_task
 from models import *
-
+from .serializers import InvitationGroup
+from rest_framework.renderers import JSONRenderer
 @shared_task(blind=True)
 def change_password_after_1_days():
     try:
@@ -24,3 +25,4 @@ def change_password_after_1_days():
     except Exception as e:
         logger.error("Task (change_password_after_1_days) thất bại: %s", str(e))
         return 'Task (change_password_after_1_days) Failed'
+

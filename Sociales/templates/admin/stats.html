@@ -1,0 +1,117 @@
+{% extends 'admin/base_site.html' %}
+
+{% load static %}
+
+{% block extrahead %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/stats.css' %}">
+{% endblock %}
+
+{% block content %}
+<h1 class="big-title">THỐNG KÊ MẠNG XÃ HỘI TRỰC TUYẾN</h1>
+
+<form method="get" class="form">
+    <label for="start_date">Ngày bắt đầu:</label>
+    <input type="date" id="start_date" name="start_date">
+
+    <label for="end_date">Ngày kết thúc:</label>
+    <input type="date" id="end_date" name="end_date">
+
+    <button type="submit">Lọc</button>
+</form>
+<div class="top-stats">
+    <div>
+        <canvas id="stats_count_posts_by_account"></canvas>
+    </div>
+
+    <div>
+        <canvas id="stats_count_comment_by_user"></canvas>
+    </div>
+</div>
+
+
+<div class="button-href my-button">
+    <a href="/admin/stats-post/" class="button-href">
+        <button type="submit" class="button">Thống kê bài đăng</button>
+    </a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let labels_1 = [];
+    let values_1 = [];
+
+    {% for s in top_accounts_post %}
+        values_1.push({{ s.count }})
+        labels_1.push('{{ s.user__first_name }}' + ' ' + '{{ s.user__last_name }}')
+    {% endfor %}
+
+    let labels_2 = [];
+    let values_2 = [];
+
+    {% for s in top_accounts_comment %}
+        values_2.push({{ s.comment_count }})
+        labels_2.push('{{ s.user__first_name }}' + ' ' + '{{ s.user__last_name }}')
+    {% endfor %}
+
+    window.onload = () => {
+        const chart_1 = document.getElementById('stats_count_posts_by_account');
+        const chart_2 = document.getElementById('stats_count_comment_by_user');
+
+        new Chart(chart_1, {
+        type: 'bar',
+        data: {
+          labels: labels_1,
+          datasets: [{
+            label: '# TOP 5 NGƯỜI ĐĂNG BÀI VIẾT NHIỀU NHẤT',
+            data: values_1,
+            borderWidth: 1,
+            backgroundColor: [
+              'rgb(31, 119, 180)',   // Màu xanh dương
+              'rgb(255, 127, 14)',   // Màu cam
+              'rgb(44, 160, 44)',    // Màu xanh lá cây
+              'rgb(214, 39, 40)',    // Màu đỏ
+              'rgb(148, 103, 189)'   // Màu tím
+            ]
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+
+      new Chart(chart_2, {
+        type: 'bar',
+        data: {
+          labels: labels_2,
+          datasets: [{
+            label: '# TOP 5 NGƯỜI BÌNH LUẬN NHIỀU NHẤT',
+            data: values_2,
+            borderWidth: 1,
+            backgroundColor: [
+              'rgb(31, 119, 180)',   // Màu xanh dương
+              'rgb(255, 127, 14)',   // Màu cam
+              'rgb(44, 160, 44)',    // Màu xanh lá cây
+              'rgb(214, 39, 40)',    // Màu đỏ
+              'rgb(148, 103, 189)'   // Màu tím
+            ]
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+
+    }
+
+</script>
+
+{% endblock %}

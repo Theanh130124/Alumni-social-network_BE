@@ -872,6 +872,11 @@ class MessageViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIV
         return serializer.save(content=encode_mes)
 
 
+
+
+
+
+#Testing==========================================================
 class LogoutView(View):
     def get(self,request):
         logout(request)
@@ -882,3 +887,13 @@ class HomeView(View):
     def get(self,request):
         current_user = request.user
         return render(request,self.template_name,{'current_user':current_user})
+
+from django.shortcuts import render, redirect
+
+
+def index(request):
+    return render(request, "chat/index.html")
+
+
+def room(request, room_name):
+    return render(request, "chat/room.html", {"room_name": room_name})

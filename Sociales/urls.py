@@ -25,4 +25,6 @@ urlpatterns = [
     path('home/',HomeView.as_view(),name='home'),
     path('home/login/',LoginView.as_view()),
     path('home/logout',LogoutView.as_view(),name='logout'),
+    path('chat/', index),
+    path("chat/<str:room_name>/", room, name="room"),
     ]
