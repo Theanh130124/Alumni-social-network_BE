@@ -47,6 +47,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
 
 #Dành cho update
 class AccountSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='user.get_full_name', read_only=True)  #Them vao de lay user cho post
     class Meta:
         model = Account
         fields = '__all__'
@@ -63,6 +64,7 @@ class AlumniAccountSerializer(serializers.ModelSerializer):
         extra_kwargs = {'alumni_account_code': {'read_only': True}}
 
 class PostSerializer(serializers.ModelSerializer):
+    account = AccountSerializer(read_only=True)
     class Meta:
         model = Post
         fields = '__all__'
@@ -88,8 +90,12 @@ class CommentForUpdateSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    account = AccountSerializer(read_only=True)
     comment_image_url = serializers.SerializerMethodField(source='comment_image_url')
-
+    @staticmethod
+    def get_comment_image_url(comment):
+        if comment.comment_image_url:
+            return comment.comment_image_url.name
 
     class Meta:
         model = Comment

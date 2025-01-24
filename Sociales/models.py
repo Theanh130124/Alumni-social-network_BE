@@ -7,6 +7,8 @@ from django.db.models import TextChoices
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
+from django.utils.html import strip_tags
+
 class BaseModel(models.Model):
     created_date = models.DateField(auto_now_add=True, null=True)
     updated_date = models.DateField(auto_now=True, null=True)
@@ -46,19 +48,7 @@ class User(AbstractUser):
     password_changed_at = models.DateTimeField(null=True, blank=True)
     def __str__(self):
         return self.username
-#Pass 24h của giảng viên
-    # def set_default_password(self):
-    #     self.set_password("ou@123")
-    #     if self.role == UserRole.LECTURER:  # Áp dụng cho giảng viên
-    #         self.force_password_change_deadline = now() + timedelta(hours=24)
-    #     else:
-    #         self.force_password_change_deadline = None  # Không yêu cầu đổi mật khẩu
-    # def is_password_change_required(self):
-    #     """Kiểm tra xem có bắt buộc đổi mật khẩu hay không."""
-    #     if self.role != UserRole.LECTURER:  # Chỉ kiểm tra cho giảng viên
-    #         return False
-    #     return self.force_password_change_deadline and now() > self.force_password_change_deadline
-#Khi có tài khoản sẽ điền này
+
 class Account(BaseModel):
     avatar = CloudinaryField('avatar',
                              default="https://res.cloudinary.com/dxiawzgnz/image/upload/v1732632586/pfvvxablnkaeqmmbqeit.png",
@@ -81,7 +71,7 @@ class Account(BaseModel):
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
     def __str__(self):
-        return self.user.username
+        return self.user.full_name
 #Fe fetch Api nhớ để ý cái này
     # def get_avatar_url(self):
     #     return self.avatar.url.replace('image/upload/', '')
@@ -111,6 +101,10 @@ class Post(BaseModel):
 
     def __str__(self):
         return self.post_content
+    def save(self, *args, **kwargs):
+        # Loại bỏ thẻ HTML khỏi nội dung trước khi lưu
+        self.post_content = strip_tags(self.post_content)
+        super().save(*args, **kwargs)
 
 
 #Chi tiết reaction
