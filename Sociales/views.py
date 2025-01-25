@@ -758,36 +758,6 @@ class SurveyAnswerViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateA
             return UpdateSurveyAnswerSerializer
         return self.serializer_class
 
-#Room
-class RoomViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView,generics.UpdateAPIView,generics.CreateAPIView):
-    queryset = Room.objects.filter(active=True).all()
-    serializer_class =RoomSerializer
-    pagination_class = MyPageSize
-    parser_classes = [JSONParser, MultiPartParser]
-
-    def get_serializer_class(self):
-        if self.action == 'create':
-            return CreateRoomSerializer
-        if self.action in ['partial_update']:
-            return UpdateRoomSerializer
-        return self.serializer_class
-    def create(self, request, *args, **kwargs):
-        first_user_id = request.data.get('first_user')
-        second_user_id = request.data.get('second_user')
-
-        #Kiểm tra room
-        existing_room = Room.objects.filter(
-            Q(first_user_id=first_user_id, second_user_id=second_user_id) |
-            Q(first_user_id=second_user_id, second_user_id=first_user_id)
-        ).exists()
-        if existing_room:
-            return Response({"error": "Room already exists."}, status=status.HTTP_400_BAD_REQUEST)
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
 
 
 class GroupViewSet(viewsets.ViewSet, generics.ListAPIView,generics.CreateAPIView):
@@ -816,41 +786,112 @@ class GroupViewSet(viewsets.ViewSet, generics.ListAPIView,generics.CreateAPIView
             return Response(group_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(group_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    @action(methods=['get'],detail=True,url_path='messages')
-    #Lấy các tin nhắn của chat
-    def messages(self,request,pk):
+
+#Room
+class RoomViewSet(viewsets.ViewSet,generics.ListAPIView):
+    queryset = Room.objects.filter(active=True).all()
+    serializer_class =RoomSerializer
+    pagination_class = MyPageSize
+    parser_classes = [JSONParser, MultiPartParser]
+    # permission_classes = [permissions.IsAuthenticated]
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateRoomSerializer
+        if self.action in ['partial_update']:
+            return UpdateRoomSerializer
+        return self.serializer_class
+
+    @action(methods=['get'], detail=True, url_path='filter_rooms')
+    def filter_rooms(self, request, pk=None):
+        try:
+            if not pk:
+                return Response({'error': 'Không tìm thấy first_user_id trong URL.'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            # Lọc các room theo first_user_id từ URL
+            rooms = Room.objects.filter(first_user_id=pk, active=True)
+
+            # Phân trang kết quả
+            paginator = MyPageSize()
+            paginated = paginator.paginate_queryset(rooms, request)
+            serializer = RoomSerializer(paginated, many=True)
+
+            return paginator.get_paginated_response(serializer.data)
+        except Exception as ex:
+            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #Tạo phòng chát cho 1 account
+    @action(methods=['post'], detail=False, url_path='create_multiple_rooms')
+    def create_multiple_rooms(self, request):
+        try:
+            first_user_id = request.data.get('first_user_id')
+            if not first_user_id:
+                return Response({'error': 'Thêm tài khoản hiện tại vào request'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Lấy danh sách tất cả người dùng, trừ người dùng hiện tại
+            second_users = Account.objects.exclude(user_id=first_user_id)  # Loại bỏ first_user
+            created_rooms = []
+            for second_user in second_users:
+                # Kiểm tra nếu phòng đã tồn tại
+                room_exists = Room.objects.filter(
+                    Q(first_user_id=first_user_id, second_user_id=second_user.user_id) |
+                    Q(first_user_id=second_user.user_id, second_user_id=first_user_id)
+                ).exists()
+
+                if not room_exists:
+                    # Tạo room mới
+                    room = Room.objects.create(
+                        first_user_id=first_user_id,
+                        second_user_id=second_user.user_id
+                    )
+                    created_rooms.append(room)
+
+            if created_rooms:
+                return Response({'message': f'Đã tạo {len(created_rooms)} rooms.'}, status=status.HTTP_201_CREATED)
+            else:
+                return Response({'message': 'Không có phòng nào được tạo, tất cả bị trùng.'},
+                                status=status.HTTP_200_OK)
+        except Exception as ex:
+            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(methods=['get'], detail=True, url_path='messages')
+    # Lấy các tin nhắn của chat
+    def messages(self, request, pk):
         messages = Message.objects.filter(room_id=pk).order_by('created_date').all()
         paginator = MyPageSize()
-        paginated = paginator.paginate_queryset(messages,request)
-        serializer = MessageSerializer(paginated,many=True)
+        paginated = paginator.paginate_queryset(messages, request)
+        serializer = MessageSerializer(paginated, many=True)
         serializer_data = serializer.data
 
         for message in serializer_data:
             content = message['content']
             decoded_content = decode_aes(content)
-            message['content'] = decoded_content #mã hóa
+            message['content'] = decoded_content  # mã hóa
 
-        return  paginator.get_paginated_response(serializer_data)
-    #Tìm đoạn chat
-    @action(methods=['post'],detail=False,url_path='find_room')
-    def find_room(self,request):
-        try:
-            first_user_id = request.data.get('first_user')
-            second_user_id = request.data.get('second_user')
-            if first_user_id and second_user_id:
-                room = Room.objects.filter(
-                        Q(first_user_id=first_user_id, second_user_id=second_user_id) |
-                        Q(first_user_id=second_user_id, second_user_id=first_user_id)
-                    )
-                return Response(RoomSerializer(room,many=True).data)
-            else:
-                return Response({'error': 'Thiếu 1 trong 2 id'}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as ex :
-            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return paginator.get_paginated_response(serializer_data)
+
+    # # Tìm đoạn chat
+    # @action(methods=['post'], detail=False, url_path='find_room')
+    # def find_room(self, request):
+    #     try:
+    #         first_user_id = request.data.get('first_user')
+    #         second_user_id = request.data.get('second_user')
+    #         if first_user_id and second_user_id:
+    #             room = Room.objects.filter(
+    #                 Q(first_user_id=first_user_id, second_user_id=second_user_id) |
+    #                 Q(first_user_id=second_user_id, second_user_id=first_user_id)
+    #             )
+    #             return Response(RoomSerializer(room, many=True).data)
+    #         else:
+    #             return Response({'error': 'Thiếu 1 trong 2 id'}, status=status.HTTP_400_BAD_REQUEST)
+    #     except Exception as ex:
+    #         return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class MessageViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView,generics.CreateAPIView,generics.DestroyAPIView):
     queryset =  Message.objects.filter(active=True).all()
     serializer_class = MessageSerializer
     pagination_class = MyPageSize
+    # permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()

@@ -274,6 +274,8 @@ class UpdateSurveyAnswerSerializer(serializers.ModelSerializer):
         model = SurveyAnswer
         fields = ['id', 'answer_value']
 class RoomSerializer(serializers.ModelSerializer):
+    first_user = AccountSerializer()
+    second_user= AccountSerializer()
     class Meta:
         model = Room
         fields = '__all__'
