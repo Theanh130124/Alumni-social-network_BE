@@ -911,7 +911,7 @@ class MessageViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIV
         for message in serializer:
             # print(message['content'])
             message['content'] = decode_aes(message['content'])
-            return  Response(serializer)
+        return  Response(serializer)
 
 
     def perform_create(self, serializer):

@@ -71,7 +71,7 @@ class Account(BaseModel):
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
     def __str__(self):
-        return self.user.full_name
+        return self.user.username
 #Fe fetch Api nhớ để ý cái này
     # def get_avatar_url(self):
     #     return self.avatar.url.replace('image/upload/', '')
@@ -90,7 +90,7 @@ class AlumniAccount(BaseModel):
         choices=ConfirmStatus.choices,
         default=ConfirmStatus.PENDING.name
     )
-
+    #Viết toString để bên admin thấy
     def __str__(self):
         return self.alumni_account_code
 
@@ -229,7 +229,7 @@ class Room(BaseModel):
         unique_together = ['first_user', 'second_user']
 
     def __str__(self):
-        return str(self.first_user.id) + str(self.second_user.id)
+        return f'Đoạn này này của'+str(self.first_user.user.username)+f'và'+str( self.second_user.user.username) #Viết toString để bên admin thấy
 
 
 class Message(BaseModel):

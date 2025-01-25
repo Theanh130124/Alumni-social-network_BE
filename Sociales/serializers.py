@@ -125,7 +125,7 @@ class PostForPostReaction(serializers.ModelSerializer):
 class PostReactionSerializer(serializers.ModelSerializer):
         #Viết như thế -> thì khi trả ve account -> nó trả chi tiet chu khong tra account_id :
         account = AccountForPostReaction()
-        post = PostForPostReaction()
+        post = PostSerializer()
         class Meta:
             model = PostReaction
             fields = '__all__'
