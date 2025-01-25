@@ -377,6 +377,15 @@ class PostReactionViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.Destr
             return PostReactionForCreateSerializer
 
         return self.serializer_class
+    #Lấy danh sách chi tiết cảm xúc
+    @action(methods=['get'],detail=True,url_path='reaction_by_account') #Truyen trên này thì
+    def get_reaction_by_account(self,request,pk=None):
+        try:
+            reactions = PostReaction.objects.filter(account_id=pk) #Truyền vào đây nó so account_id có trong Reaction so với pk mình cho vào
+            serializer = PostReactionSerializer(reactions, many=True)
+            return Response(serializer.data,status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 #Create
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
