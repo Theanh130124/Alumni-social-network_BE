@@ -901,18 +901,18 @@ class MessageViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIV
     serializer_class = MessageSerializer
     pagination_class = MyPageSize
     # permission_classes = [permissions.IsAuthenticated]
-
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-
-        # print(queryset) # Test
-        serializer = MessageSerializer(queryset,many=True).data
+        serializer = MessageSerializer(queryset, many=True).data
 
         for message in serializer:
-            # print(message['content'])
-            message['content'] = decode_aes(message['content'])
-        return  Response(serializer)
-
+            if message.get('content'):  # Kiểm tra nếu content tồn tại
+                decoded_content = decode_aes(message['content'])
+                print(f"Decoded content: {decoded_content}")  # Debug
+                message['content'] = decoded_content or "Invalid content"
+            else:
+                message['content'] = "Content is empty"
+        return Response(serializer)
 
     def perform_create(self, serializer):
         data = self.request.data

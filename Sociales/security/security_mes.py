@@ -17,17 +17,12 @@ def encode_aes(text):
 
 # Giải mã
 def decode_aes(text):
-    """
-    Giải mã chuỗi đã mã hóa bằng Fernet.
-    :param text: Chuỗi đã mã hóa (string)
-    :return: Chuỗi sau khi giải mã (string)
-    """
     fernet = Fernet(MY_AES_KEY)
     try:
-        # Đảm bảo dữ liệu đầu vào là bytes trước khi giải mã
+        print(f"Decoding text: {text}")  # Debug
         b_text = text.encode() if isinstance(text, str) else text
-        text_decrypt = fernet.decrypt(b_text).decode()  # Giải mã -> về string
+        text_decrypt = fernet.decrypt(b_text).decode()
         return text_decrypt
     except Exception as e:
-        print(f"Decode error: {e}")
+        print(f"Decode error: {e}")  # Debug lỗi giải mã
         return None
