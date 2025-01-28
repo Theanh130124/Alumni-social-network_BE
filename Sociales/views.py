@@ -39,7 +39,7 @@ from .paginators import MyPageSize, MyPageListReaction
 from .serializers import *
 from django.db import transaction
 from django_redis import get_redis_connection  # có localhost trong settings host web nhwos chỉnh
-
+from django.utils.timezone import now
 redis_connection = get_redis_connection("default")
 
 # Chỉ cần truyền fields = ['','']
@@ -239,6 +239,16 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.ListAPIVi
         except Exception as ex:
             return Response({'Phát hiện lỗi': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(methods=['post'],detail=False,url_path='update_last_login')
+    def update_last_login(self,request):
+        user = request.user
+        if user.is_authenticated:
+            user.last_login = now()
+            user.save()
+            return Response({"message": "last_login đã được cập nhật"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "Bạn cần phải đăng nhập để cập nhật last_login"},
+                            status=status.HTTP_401_UNAUTHORIZED)
 
 class AccountViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
     queryset = Account.objects.all()  # Xem nếu filter comfirm_status ?

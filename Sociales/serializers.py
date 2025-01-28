@@ -48,6 +48,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
 #Dành cho update
 class AccountSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source='user.get_full_name', read_only=True)  #Them vao de lay user cho post
+    user = UserSerializer()
     class Meta:
         model = Account
         fields = '__all__'
