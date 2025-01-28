@@ -222,8 +222,7 @@ class Group(BaseModel):
 class Room(BaseModel):
     first_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='first_user_room', null=True)
     second_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='second_user_room', null=True)
-    received_message_date = models.DateTimeField(auto_now=True) #Đã gửi lúc
-    seen = models.BooleanField(default=False) # đã xem
+
 
     class Meta:
         unique_together = ['first_user', 'second_user']
@@ -233,9 +232,13 @@ class Room(BaseModel):
 
 
 class Message(BaseModel):
-    who_sent = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
-    content = models.CharField(max_length=10000)
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, null=True)
+    who_sent = models.ForeignKey('Account', on_delete=models.CASCADE, null=True)  # Người gửi
+    content = models.CharField(max_length=10000)  # Nội dung tin nhắn
+    room = models.ForeignKey('Room', on_delete=models.CASCADE, null=True)  # Phòng chat
+    seen = models.BooleanField(default=False)  # Trạng thái đã xem
+    timestamp = models.DateTimeField(default=timezone.now)  # Thời gian gửi tin nhắn
 
     def __str__(self):
-        return self.content
+        return f"Message from {self.who_sent} in room {self.room} at {self.timestamp}"
+
+#Ở FILE NÀY MESSAGE CHƯA ĐC MIGRATIONS VÌ LƯỜI XÓA ;)

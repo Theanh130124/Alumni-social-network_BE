@@ -950,12 +950,12 @@ class RoomViewSet(viewsets.ViewSet, generics.ListAPIView):
     pagination_class = MyPageSize
     parser_classes = [JSONParser, MultiPartParser]
 
-    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     def get_serializer_class(self):
         if self.action == 'create':
             return CreateRoomSerializer
         if self.action in ['partial_update']:
-            return UpdateRoomSerializer
+            return RoomSerializer
         return self.serializer_class
 
     @action(methods=['get'], detail=True, url_path='filter_rooms')
@@ -1011,13 +1011,15 @@ class RoomViewSet(viewsets.ViewSet, generics.ListAPIView):
         except Exception as ex:
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+#Tach seriazlizer -> de co the get chi tiet -> nhung create message thi khong can truyen vao chi tiet(hay doi tuong)
     @action(methods=['get'], detail=True, url_path='messages')
     # Lấy các tin nhắn của chat
     def messages(self, request, pk):
         messages = Message.objects.filter(room_id=pk).order_by('created_date').all()
         paginator = MyPageSize()
         paginated = paginator.paginate_queryset(messages, request)
-        serializer = MessageSerializer(paginated, many=True)
+        serializer = MessageSerializerForRoom(paginated, many=True)
         serializer_data = serializer.data
 
         for message in serializer_data:
@@ -1045,13 +1047,13 @@ class RoomViewSet(viewsets.ViewSet, generics.ListAPIView):
     #         return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class MessageViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView, generics.CreateAPIView,
-                     generics.DestroyAPIView):
+class MessageViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView, generics.CreateAPIView,generics.UpdateAPIView,
+                     generics.DestroyAPIView,):
     queryset = Message.objects.filter(active=True).all()
     serializer_class = MessageSerializer
     pagination_class = MyPageSize
 
-    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = MessageSerializer(queryset, many=True).data
@@ -1071,6 +1073,7 @@ class MessageViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         encode_mes = encode_aes(raw_content)
         # print(encode_mes)
         return serializer.save(content=encode_mes)
+
 
 
 # Testing==========================================================

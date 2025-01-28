@@ -286,19 +286,24 @@ class CreateRoomSerializer(serializers.ModelSerializer):
         fields = ['first_user', 'second_user']
 
 
-class UpdateRoomSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Room
-        fields = ['seen']
+
 
 
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = '__all__'
-
+#Tách ra để get post để post dùng cái dưới không cần truyền vào đối tượng
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = '__all__'
+
+class MessageSerializerForRoom(serializers.ModelSerializer):
+    who_sent = AccountSerializer()
+    room = RoomSerializer()
+    class Meta:
+        model = Message
+        fields = '__all__'
+
 
