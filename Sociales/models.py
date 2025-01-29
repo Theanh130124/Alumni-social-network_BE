@@ -99,6 +99,9 @@ class Post(BaseModel):
     comment_lock = models.BooleanField(default=False)
     account = models.ForeignKey(Account,  on_delete=models.CASCADE, null=True , related_name="posts")
 
+    class Meta:
+        ordering = ['-created_date']
+
     def __str__(self):
         return self.post_content
     def save(self, *args, **kwargs):
