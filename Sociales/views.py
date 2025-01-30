@@ -1027,8 +1027,37 @@ class MessageViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIV
 
 
 
+#FBV(Function_BaseView) -> cho Api nhỏ
+from django.db.models.functions import TruncYear, TruncMonth, TruncQuarter
+from django.http import JsonResponse
+from .dao import *
+from django.utils.dateparse import parse_date
+#Thống kê số người dùng
+def count_user_api(requset):
+    params = requset.GET.dict()
+    users = load_users(params)
+    data = list(users.values('id','username','first_name','last_name'))
+    return JsonResponse(data,safe=False)
+#Thống ke số bài viết
+def count_posts_api(request):
+    params = request.GET.dict()
+    posts = load_posts(params)
+    data = list(posts.values('id', 'post_content', 'created_date'))
+    return JsonResponse(data, safe=False)
 
 
+# API đếm số bài viết theo năm/tháng/quý
+def count_posts_by_time_api(request):
+    params = request.GET.dict()
+
+    # Chuyển đổi start_date, end_date từ string sang datetime
+    if 'start_date' in params:
+        params['start_date'] = parse_date(params['start_date'])
+    if 'end_date' in params:
+        params['end_date'] = parse_date(params['end_date'])
+
+    posts_count = count_posts_by_time_unit(params)
+    return JsonResponse(posts_count, safe=False)
 #Testing==========================================================
 class LogoutView(View):
     def get(self,request):

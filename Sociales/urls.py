@@ -29,4 +29,10 @@ urlpatterns = [
     path('home/logout',LogoutView.as_view(),name='logout'),
     path('chat/', index),
     path("chat/<str:room_name>/", room, name="room"),
+
+    #Thống kê nằm ở đây
+    #Thêm đếm cho user ->
+    path('api/count_users',count_user_api, name='count_users_api'),
+    path('api/count_posts',count_posts_api, name='count_posts_api'),
+    path('api/count_posts_by_time/',count_posts_by_time_api,name='count_posts_by_time_api')
     ]
