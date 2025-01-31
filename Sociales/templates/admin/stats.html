@@ -1,117 +1,93 @@
 {% extends 'admin/base_site.html' %}
 
-{% load static %}
-
-{% block extrahead %}
-<link rel="stylesheet" type="text/css" href="{% static 'css/stats.css' %}">
-{% endblock %}
-
 {% block content %}
-<h1 class="big-title">THỐNG KÊ MẠNG XÃ HỘI TRỰC TUYẾN</h1>
+<h2>Thống kê hệ thống Mạng xã hội cựu Sinh Viên</h2>
 
-<form method="get" class="form">
-    <label for="start_date">Ngày bắt đầu:</label>
-    <input type="date" id="start_date" name="start_date">
-
-    <label for="end_date">Ngày kết thúc:</label>
-    <input type="date" id="end_date" name="end_date">
-
-    <button type="submit">Lọc</button>
+<!-- Form chọn thời gian -->
+<form method="post">
+    {% csrf_token %}
+    <label for="time_unit">Thống kê theo:</label>
+    <select name="time_unit" id="time_unit">
+        <option value="year" {% if time_unit == "year" %}selected{% endif %}>Năm</option>
+        <option value="quarter" {% if time_unit == "quarter" %}selected{% endif %}>Quý</option>
+        <option value="month" {% if time_unit == "month" %}selected{% endif %}>Tháng</option>
+    </select>
+    <button type="submit">Xem thống kê</button>
 </form>
-<div class="top-stats">
-    <div>
-        <canvas id="stats_count_posts_by_account"></canvas>
-    </div>
-
-    <div>
-        <canvas id="stats_count_comment_by_user"></canvas>
-    </div>
+<form method="get" action="{% url 'export_excel' %}">
+    <input type="hidden" name="time_unit" value="{{time_unit}}">
+    <button type="submit">Xuất Excel</button>
+</form>
+<!-- Biểu đồ số lượng người dùng -->
+<div>
+    <canvas id="user_chart"></canvas>
 </div>
 
-
-<div class="button-href my-button">
-    <a href="/admin/stats-post/" class="button-href">
-        <button type="submit" class="button">Thống kê bài đăng</button>
-    </a>
+<!-- Biểu đồ số lượng bài viết -->
+<div>
+    <canvas id="post_chart"></canvas>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-    let labels_1 = [];
-    let values_1 = [];
+    let labels_users = [];
+    let values_users = [];
+    let labels_posts = [];
+    let values_posts = [];
 
-    {% for s in top_accounts_post %}
-        values_1.push({{ s.count }})
-        labels_1.push('{{ s.user__first_name }}' + ' ' + '{{ s.user__last_name }}')
+    {% for s in users_stats %}
+        labels_users.push('{{ s.time_unit }}');
+        values_users.push({{ s.count }});
     {% endfor %}
 
-    let labels_2 = [];
-    let values_2 = [];
-
-    {% for s in top_accounts_comment %}
-        values_2.push({{ s.comment_count }})
-        labels_2.push('{{ s.user__first_name }}' + ' ' + '{{ s.user__last_name }}')
+    {% for p in posts_stats %}
+        labels_posts.push('{{ p.time_unit }}');
+        values_posts.push({{ p.count }});
     {% endfor %}
 
-    window.onload = () => {
-        const chart_1 = document.getElementById('stats_count_posts_by_account');
-        const chart_2 = document.getElementById('stats_count_comment_by_user');
-
-        new Chart(chart_1, {
-        type: 'bar',
-        data: {
-          labels: labels_1,
-          datasets: [{
-            label: '# TOP 5 NGƯỜI ĐĂNG BÀI VIẾT NHIỀU NHẤT',
-            data: values_1,
-            borderWidth: 1,
-            backgroundColor: [
-              'rgb(31, 119, 180)',   // Màu xanh dương
-              'rgb(255, 127, 14)',   // Màu cam
-              'rgb(44, 160, 44)',    // Màu xanh lá cây
-              'rgb(214, 39, 40)',    // Màu đỏ
-              'rgb(148, 103, 189)'   // Màu tím
-            ]
-          }]
-        },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true
+    document.addEventListener("DOMContentLoaded", function() {
+        // Biểu đồ số lượng người dùng
+        const user_ctx = document.getElementById('user_chart').getContext('2d');
+        new Chart(user_ctx, {
+            type: 'line',
+            data: {
+                labels: labels_users,
+                datasets: [{
+                    label: 'Số lượng người dùng đăng ký',
+                    data: values_users,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderWidth: 2,
+                    fill: true
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true }
+                }
             }
-          }
-        }
-      });
+        });
 
-      new Chart(chart_2, {
-        type: 'bar',
-        data: {
-          labels: labels_2,
-          datasets: [{
-            label: '# TOP 5 NGƯỜI BÌNH LUẬN NHIỀU NHẤT',
-            data: values_2,
-            borderWidth: 1,
-            backgroundColor: [
-              'rgb(31, 119, 180)',   // Màu xanh dương
-              'rgb(255, 127, 14)',   // Màu cam
-              'rgb(44, 160, 44)',    // Màu xanh lá cây
-              'rgb(214, 39, 40)',    // Màu đỏ
-              'rgb(148, 103, 189)'   // Màu tím
-            ]
-          }]
-        },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true
+        // Biểu đồ số lượng bài viết
+        const post_ctx = document.getElementById('post_chart').getContext('2d');
+        new Chart(post_ctx, {
+            type: 'bar',
+            data: {
+                labels: labels_posts,
+                datasets: [{
+                    label: 'Số lượng bài viết được đăng',
+                    data: values_posts,
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true }
+                }
             }
-          }
-        }
-      });
-
-    }
-
+        });
+    });
 </script>
-
 {% endblock %}

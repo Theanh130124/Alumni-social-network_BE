@@ -25,7 +25,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from dbm import error
 from re import search
 from django.db.models import Count, Q
-from django.db.models.functions import TruncYear
+from django.db.models.functions import TruncYear, TruncQuarter, TruncMonth
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import render, redirect
 from django.template.defaultfilters import first
@@ -1026,38 +1026,88 @@ class MessageViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIV
         return serializer.save(content=encode_mes)
 
 
+import pandas as pd
+from django.http import HttpResponse
+from django.shortcuts import render
+from .models import User, Post
+from django.db.models.functions import TruncYear, TruncQuarter, TruncMonth
+from django.db.models import Count
 
-#FBV(Function_BaseView) -> cho Api nhỏ
-from django.db.models.functions import TruncYear, TruncMonth, TruncQuarter
-from django.http import JsonResponse
-from .dao import *
-from django.utils.dateparse import parse_date
-#Thống kê số người dùng
-def count_user_api(requset):
-    params = requset.GET.dict()
-    users = load_users(params)
-    data = list(users.values('id','username','first_name','last_name'))
-    return JsonResponse(data,safe=False)
-#Thống ke số bài viết
-def count_posts_api(request):
-    params = request.GET.dict()
-    posts = load_posts(params)
-    data = list(posts.values('id', 'post_content', 'created_date'))
-    return JsonResponse(data, safe=False)
+from django.http import HttpResponse
+import pandas as pd
+from django.db.models import Count
+from django.db.models.functions import TruncYear, TruncQuarter, TruncMonth
+from .models import User, Post  # Đảm bảo import đúng model
+
+def statistics_view(request):
+    time_unit = request.POST.get("time_unit", "year")  # Mặc định theo năm
+    time_map = {
+        "year": TruncYear,
+        "quarter": TruncQuarter,
+        "month": TruncMonth,
+    }
+    time_function = time_map.get(time_unit, TruncYear)
+
+    # Thống kê số người dùng
+    users_stats = User.objects.annotate(time_unit=time_function("date_joined")) \
+        .values("time_unit") \
+        .annotate(count=Count("id")) \
+        .order_by("time_unit")
+
+    # Thống kê số bài viết
+    posts_stats = Post.objects.annotate(time_unit=time_function("created_date")) \
+        .values("time_unit") \
+        .annotate(count=Count("id")) \
+        .order_by("time_unit")
+
+    return render(request, "admin/stats.html", {
+        "users_stats": users_stats,
+        "posts_stats": posts_stats,
+        "time_unit": time_unit,
+    })
 
 
-# API đếm số bài viết theo năm/tháng/quý
-def count_posts_by_time_api(request):
-    params = request.GET.dict()
+def export_statistics_to_excel(request):
+    # Lấy tham số từ request GET
+    time_unit = request.GET.get("time_unit", "year")
 
-    # Chuyển đổi start_date, end_date từ string sang datetime
-    if 'start_date' in params:
-        params['start_date'] = parse_date(params['start_date'])
-    if 'end_date' in params:
-        params['end_date'] = parse_date(params['end_date'])
+    # Map từ khóa với hàm tương ứng
+    time_map = {
+        "year": TruncYear,
+        "quarter": TruncQuarter,
+        "month": TruncMonth,
+    }
+    time_function = time_map.get(time_unit, TruncYear)
 
-    posts_count = count_posts_by_time_unit(params)
-    return JsonResponse(posts_count, safe=False)
+    # Lấy số liệu thống kê
+    users_stats = User.objects.annotate(time_unit=time_function("date_joined")) \
+        .values("time_unit") \
+        .annotate(count=Count("id")) \
+        .order_by("time_unit")
+
+    posts_stats = Post.objects.annotate(time_unit=time_function("created_date")) \
+        .values("time_unit") \
+        .annotate(count=Count("id")) \
+        .order_by("time_unit")
+
+    # Chuyển dữ liệu thành DataFrame
+    df_users = pd.DataFrame(list(users_stats))
+    df_posts = pd.DataFrame(list(posts_stats))
+
+    # Chuyển đổi dữ liệu datetime thành chuỗi để tránh lỗi
+    df_users["time_unit"] = df_users["time_unit"].astype(str)
+    df_posts["time_unit"] = df_posts["time_unit"].astype(str)
+
+    # Ghi dữ liệu vào file Excel
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = 'attachment; filename="statistics.xlsx"'
+
+    with pd.ExcelWriter(response, engine="xlsxwriter") as writer:
+        df_users.to_excel(writer, sheet_name="Users", index=False)
+        df_posts.to_excel(writer, sheet_name="Posts", index=False)
+
+    return response
+
 #Testing==========================================================
 class LogoutView(View):
     def get(self,request):

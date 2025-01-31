@@ -32,7 +32,7 @@ urlpatterns = [
 
     #Thống kê nằm ở đây
     #Thêm đếm cho user ->
-    path('api/count_users',count_user_api, name='count_users_api'),
-    path('api/count_posts',count_posts_api, name='count_posts_api'),
-    path('api/count_posts_by_time/',count_posts_by_time_api,name='count_posts_by_time_api')
+    path('statistics/', statistics_view, name='statistics'),
+    path('export_excel/', export_statistics_to_excel, name='export_excel'),
+
     ]
