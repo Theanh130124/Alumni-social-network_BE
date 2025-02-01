@@ -46,19 +46,18 @@
     {% endfor %}
 
     document.addEventListener("DOMContentLoaded", function() {
-        // Biểu đồ số lượng người dùng
+        // Biểu đồ số lượng người dùng (chuyển sang dạng bar)
         const user_ctx = document.getElementById('user_chart').getContext('2d');
         new Chart(user_ctx, {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: labels_users,
                 datasets: [{
                     label: 'Số lượng người dùng đăng ký',
                     data: values_users,
-                    borderColor: 'rgb(54, 162, 235)',
                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderWidth: 2,
-                    fill: true
+                    borderColor: 'rgb(54, 162, 235)',
+                    borderWidth: 1
                 }]
             },
             options: {
@@ -68,7 +67,7 @@
             }
         });
 
-        // Biểu đồ số lượng bài viết
+        // Biểu đồ số lượng bài viết (vẫn giữ dạng bar)
         const post_ctx = document.getElementById('post_chart').getContext('2d');
         new Chart(post_ctx, {
             type: 'bar',
