@@ -541,15 +541,26 @@ class CommentViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.UpdateAPIV
         if self.action == 'create':
             return CommentForCreateSerializer
 
-    def perform_update(self, serializer):
-        fields = ['comment_image_url']
-        upload_res = FileUploadHelper.upload_files(self.request,fields=fields)
-        serializer.save(**upload_res)
-#2 thằng này là riêng nha -> dùng lại của mixin
     def perform_create(self, serializer):
         fields = ['comment_image_url']
-        upload_res = FileUploadHelper.upload_files(self.request, fields=fields)
+        upload_res = {}
+
+        # Chỉ upload nếu có file trong request
+        if any(field in self.request.FILES for field in fields):
+            upload_res = FileUploadHelper.upload_files(self.request, fields=fields)
+
         serializer.save(**upload_res)
+
+    def perform_update(self, serializer):
+        fields = ['comment_image_url']
+        upload_res = {}
+
+        # Chỉ upload nếu có file trong request
+        if any(field in self.request.FILES for field in fields):
+            upload_res = FileUploadHelper.upload_files(self.request, fields=fields)
+
+        serializer.save(**upload_res)
+
 
 #Bài đăng dạng thư mời -> để đăng sự kiện của trường mời các cựu sinh viên
 
@@ -850,7 +861,7 @@ class SurveyQuestionOptionViewSet(viewsets.ViewSet,generics.CreateAPIView,):
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class SurveyResponseViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView):
+class SurveyResponseViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView , generics.CreateAPIView):
     queryset = SurveyResponse.objects.all()
     serializer_class = SurveyResponseSerializer
     pagination_class = MyPageSize
