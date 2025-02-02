@@ -147,6 +147,7 @@ class PostSurvey(BaseModel):
     end_time = models.DateTimeField()
     is_closed = models.BooleanField(default=False)
     post = models.OneToOneField(Post, on_delete=models.CASCADE, primary_key=True)
+
 #-> Validate việc lúc tạo còn lúc update validate bên view
     def clean(self):
         # Kiểm tra nếu end_time nhỏ hơn start_time

@@ -176,7 +176,11 @@ class PostSurveySerializer(serializers.ModelSerializer):
     class Meta:
         model = PostSurvey
         fields = '__all__'
-
+class PostSurveyForListSerializer(serializers.ModelSerializer):
+    post = PostSerializer()
+    class Meta:
+        model = PostSurvey
+        fields = '__all__'
 
 class PostSurveyCreateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='pk', read_only=True)
@@ -185,6 +189,11 @@ class PostSurveyCreateSerializer(serializers.ModelSerializer):
         model = PostSurvey
         fields = ['id', 'post_survey_title', 'start_time', 'end_time', 'post']
 
+class PostForListSerializer(serializers.ModelSerializer):
+    post_survey = PostSurveySerializer(source='postsurvey', read_only=True)
+    class Meta:
+        model = Post
+        fields = '__all__'
 #Xử lý cái is_closed
 class PostSurveyUpdateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='pk', read_only=True)

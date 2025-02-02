@@ -1,3 +1,4 @@
+
 import json
 from asyncio import Future
 
@@ -25,7 +26,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from dbm import error
 from re import search
 from django.db.models import Count, Q
-from django.db.models.functions import TruncYear, TruncQuarter, TruncMonth
+from django.db.models.functions import TruncYear
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import render, redirect
 from django.template.defaultfilters import first
@@ -263,7 +264,7 @@ class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIV
     @action(methods=['get'], detail=True, url_path='post')
     def get_post_of_account(self, request, pk):
         try:
-            posts = self.get_object().posts.all().order_by('-created_date')
+            posts = self.get_object().posts.all().order_by('-created_date','-id')
 
 
             # Dùng self.paginate_queryset để tự động lấy pagination_class
@@ -293,7 +294,8 @@ class AlumniAccountViewSet(viewsets.ViewSet ,generics.ListAPIView , generics.Ret
         return [permissions.AllowAny()]
 
 class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView , generics.RetrieveAPIView , generics.UpdateAPIView , generics.DestroyAPIView):
-    queryset = Post.objects.filter(active=True).order_by('-created_date')
+    queryset = Post.objects.filter(active=True).order_by('-created_date', '-id')
+
     serializer_class = PostSerializer
   #Truyền vào do có tự định nghĩa PostOwner
     pagination_class =  MyPageSize
@@ -304,7 +306,8 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
     def get_serializer_class(self):
         if self.action.__eq__('create'):
             return CreatePostSerializer
-        return PostSerializer
+        if self.action.__eq__('list'):
+            return PostForListSerializer
     def get_permissions(self):
         if self.action in ['destroy','update','partial_update']:
             return [PostOwner()]
@@ -561,7 +564,6 @@ class CommentViewSet(viewsets.ViewSet,generics.CreateAPIView,generics.UpdateAPIV
 
         serializer.save(**upload_res)
 
-
 #Bài đăng dạng thư mời -> để đăng sự kiện của trường mời các cựu sinh viên
 
 #Destroy -> xóa nguyên bài , update -> update lại thời gian kết thúc
@@ -702,12 +704,21 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
 
 # 16-01-2025
 #Bài đăng dạng khảo sát admin làm -> Xử lý không đồng bộ trên Fe để tạo được bài viết trc rồi -> tạo ds câu hỏi
-class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPIView,generics.UpdateAPIView):
-    queryset = PostSurvey.objects.filter(active=True).all()
+class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPIView,generics.UpdateAPIView,generics.DestroyAPIView):
+    queryset = PostSurvey.objects.order_by('-created_date', '-post').all()
     serializer_class =  PostSurveySerializer
     pagination_class =  MyPageSize
-    permission_classes = [IsAdminUserRole] #Chỉ có admin mới thực hiện mọi Api class này
+
     parser_classes = [JSONParser,MultiPartParser]
+
+
+
+    def get_permissions(self):
+        if self.action in ['partial_update','destroy','update','create' ,'create_survey_questions','check_survey_completed']:
+            return [IsAdminUserRole()]
+
+        else:
+            return [permissions.IsAuthenticated()]
 
     def create(self, request, *args, **kwargs):
         try:
@@ -750,6 +761,8 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPI
             return PostSurveyCreateSerializer
         if self.action in ['update', 'partial_update']:
             return PostSurveyCreateSerializer
+        if self.action == 'list':
+            return PostSurveyForListSerializer
         return self.serializer_class
     #Lấy các câu hỏi của 1 post_survey theo id post
     @action(methods=['get'],detail=True,url_path='survey_question')
@@ -861,7 +874,7 @@ class SurveyQuestionOptionViewSet(viewsets.ViewSet,generics.CreateAPIView,):
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class SurveyResponseViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView , generics.CreateAPIView):
+class SurveyResponseViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIView, generics.CreateAPIView):
     queryset = SurveyResponse.objects.all()
     serializer_class = SurveyResponseSerializer
     pagination_class = MyPageSize
@@ -1037,12 +1050,8 @@ class MessageViewSet(viewsets.ViewSet,generics.ListAPIView,generics.RetrieveAPIV
         return serializer.save(content=encode_mes)
 
 
-import pandas as pd
-from django.http import HttpResponse
-from django.shortcuts import render
-from .models import User, Post
-from django.db.models.functions import TruncYear, TruncQuarter, TruncMonth
-from django.db.models import Count
+
+
 
 from django.http import HttpResponse
 import pandas as pd
@@ -1118,6 +1127,7 @@ def export_statistics_to_excel(request):
         df_posts.to_excel(writer, sheet_name="Posts", index=False)
 
     return response
+
 
 #Testing==========================================================
 class LogoutView(View):
