@@ -239,6 +239,22 @@ class UserViewSet(viewsets.ViewSet , generics.RetrieveAPIView, generics.ListAPIV
             return Response({"message": "Bạn cần phải đăng nhập để cập nhật last_login"},
                             status=status.HTTP_401_UNAUTHORIZED)
 
+    @action(methods=['post'],detail=False,url_path='change-password')
+    def change_password(self,request):
+        user = request.user
+        old_password = request.data.get('old_pass')
+        new_password = request.data.get('new_pass')
+        if not old_password or not new_password:
+            return Response({'detail': 'Vui lòng cung cấp mật khẩu cũ và mật khẩu mới.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not user.check_password(old_password):
+            return Response({'detail': 'Mật khẩu cũ không đúng.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Cập nhật mật khẩu mới
+        user.set_password(new_password)
+        user.password_changed_at = timezone.now()  # Ghi lại thời gian đổi mật khẩu
+        user.save()
+
+        return Response({'detail': 'Đổi mật khẩu thành công.'}, status=status.HTTP_200_OK)
 
 class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIView):
     queryset = Account.objects.all() #Xem nếu filter comfirm_status ?
@@ -595,6 +611,7 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
     def get_serializer_class(self):
         if self.action == 'create':
             return PostInvitationCreateSerializer
+
         if self.action in ['update', 'partial_update']:
             return PostInvitationUpdateSerializer
         return self.serializer_class
