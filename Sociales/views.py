@@ -252,9 +252,20 @@ class AccountViewSet( viewsets.ViewSet ,generics.ListAPIView,generics.UpdateAPIV
         return [permissions.AllowAny()]
 #Xử lý uploadcloud
     def perform_update(self, serializer):
-        fields = ['avatar','cover_avatar']
-        upload_res = FileUploadHelper.upload_files(self.request,fields=fields)
-        serializer.save(**upload_res)
+        fields = ['avatar', 'cover_avatar']
+        upload_res = {}
+
+        # Kiểm tra từng trường và chỉ upload nếu có file
+        for field in fields:
+            if field in self.request.FILES:
+                upload_res.update(FileUploadHelper.upload_files(self.request, fields=[field]))
+
+        # Cập nhật dữ liệu nếu có file upload
+        if upload_res:
+            serializer.save(**upload_res)
+        else:
+            # Nếu không có file nào được upload, vẫn cho phép cập nhật các trường khác
+            serializer.save()
 
 
     def update(self, request, *args, **kwargs):
@@ -306,8 +317,9 @@ class PostViewSet(viewsets.ViewSet,generics.ListAPIView, generics.CreateAPIView 
     def get_serializer_class(self):
         if self.action.__eq__('create'):
             return CreatePostSerializer
-        if self.action.__eq__('list'):
+        if self.action == 'list':
             return PostForListSerializer
+        return PostSerializer
     def get_permissions(self):
         if self.action in ['destroy','update','partial_update']:
             return [PostOwner()]
@@ -716,7 +728,6 @@ class PostSurveyViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPI
     def get_permissions(self):
         if self.action in ['partial_update','destroy','update','create' ,'create_survey_questions','check_survey_completed']:
             return [IsAdminUserRole()]
-
         else:
             return [permissions.IsAuthenticated()]
 

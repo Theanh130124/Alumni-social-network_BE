@@ -172,15 +172,11 @@ class AlumniForInvitationSerializer(serializers.ModelSerializer):
 ##PostSurvey
 
 class PostSurveySerializer(serializers.ModelSerializer):
+    post = PostSerializer
+    class Meta:
+        model = PostSurvey
+        fields = '__all__'
 
-    class Meta:
-        model = PostSurvey
-        fields = '__all__'
-class PostSurveyForListSerializer(serializers.ModelSerializer):
-    post = PostSerializer()
-    class Meta:
-        model = PostSurvey
-        fields = '__all__'
 
 class PostSurveyCreateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='pk', read_only=True)
@@ -189,10 +185,31 @@ class PostSurveyCreateSerializer(serializers.ModelSerializer):
         model = PostSurvey
         fields = ['id', 'post_survey_title', 'start_time', 'end_time', 'post']
 
-class PostForListSerializer(serializers.ModelSerializer):
-    post_survey = PostSurveySerializer(source='postsurvey', read_only=True)
+class SurveyResponseSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Post
+        model = SurveyResponse
+        fields = '__all__'
+class SurveyResponseForListSerializer(serializers.ModelSerializer):
+    account = AccountSerializer
+    class Meta:
+        model = SurveyResponse
+        fields = '__all__'
+class SurveyAnswerFoListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyAnswer
+        fields = '__all__'
+class SurveyQuestionFoListSerializer(serializers.ModelSerializer):
+    survey_answers = SurveyAnswerFoListSerializer(many=True, read_only=True, source="surveyanswer_set")
+
+    class Meta:
+        model = SurveyQuestion
+        fields = '__all__'
+class PostSurveyFoListSerializer(serializers.ModelSerializer):
+    survey_questions = SurveyQuestionFoListSerializer(many=True, read_only=True)
+    survey_responses = SurveyResponseForListSerializer(many=True, read_only=True, source="surveyresponse_set")
+    post = PostSerializer
+    class Meta:
+        model = PostSurvey
         fields = '__all__'
 #Xử lý cái is_closed
 class PostSurveyUpdateSerializer(serializers.ModelSerializer):
@@ -202,8 +219,13 @@ class PostSurveyUpdateSerializer(serializers.ModelSerializer):
         model = PostSurvey
         fields = ['id', 'post_survey_title', 'start_time', 'end_time', 'is_closed']
 
-#Khảo sát
-
+# Khảo sát
+class PostForListSerializer(serializers.ModelSerializer):
+    post_survey = PostSurveyFoListSerializer(source='postsurvey', read_only=True)
+    account = AccountSerializer(read_only=True)
+    class Meta:
+        model = Post
+        fields = '__all__'
 
 #Chi tiet câu hỏi
 class SurveyQuestionSerializer(serializers.ModelSerializer):
@@ -225,10 +247,7 @@ class UpdateSurveyQuestionSerializer(serializers.ModelSerializer):
         fields = ['id', 'is_required', 'question_content', 'question_order', ] #khong cho sua survey_question_type ->
 
 
-class SurveyResponseSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SurveyResponse
-        fields = '__all__'
+
 
 
 
@@ -246,6 +265,10 @@ class UpdateSurveyQuestionOptionSerializer(serializers.ModelSerializer):
         model = SurveyQuestionOption
         fields = ['id','question_option_value','question_option_order']
 
+class PostSurveyForListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostSurvey
+        fields = '__all__'
 
 class PostSurveySerializerForSurveyQuestion(serializers.ModelSerializer):
     class Meta:
@@ -314,5 +337,3 @@ class MessageSerializerForRoom(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = '__all__'
-
-
