@@ -3,7 +3,7 @@ from venv import logger
 from django.utils import timezone
 from datetime import timedelta
 from celery import shared_task
-from models import *
+from Sociales.models import *
 from .serializers import InvitationGroup
 from rest_framework.renderers import JSONRenderer
 @shared_task(blind=True)

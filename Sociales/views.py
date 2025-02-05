@@ -667,28 +667,29 @@ class PostInvitationViewSet(viewsets.ViewSet,generics.ListAPIView,generics.Retri
         except Exception as ex:
             return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     #Mời thành viên trong group
-    @action(methods=['post'],detail=True,url_path='invite_group')
-    def invite_group(self,request,pk):
+    @action(methods=['post'], detail=True, url_path='alumni')
+    def invited_alumni(self, request, pk):
         try:
             with transaction.atomic():
                 post_invitation = self.get_object()
-                group_ids = request.data.get('group_ids',[])
-                groups = Group.objects.filter(id__in=group_ids)
-                if not groups.exists():
-                    return Response({'error':'Không tìm thấy nhóm'},status=status.HTTP_400_BAD_REQUEST)
-                for group in groups:
-                    # Thay đổi phương thức filter sao cho rõ ràng hơn
-                    alumni_accounts = AlumniAccount.objects.filter(account__groups__in=groups).distinct() #distinct() loại bỏ các TH trùng lặp
+                # Truyền ID vào
+                list_alumni_id = request.data.get('list_alumni_id', [])
+                list_alumni_id = set(list_alumni_id)  # account_id là primary key
+                account = AlumniAccount.objects.filter(account_id__in=list_alumni_id)  # So sánh với set nên id__in
+                if account.count() != len(list_alumni_id):
+                    missing_ids = set(list_alumni_id) - set(account.values_list('account_id', flat=True))  # flat true để trả list
+                    raise NotFound(f'Tài khoản với ID {missing_ids} không tồn tại')
 
-                    #Thêm tất cả member vào nhóm
-                    post_invitation.accounts_alumni.add(*alumni_accounts)
-                    emails = alumni_accounts.values_list('account__user__email', flat=True)
-
-                    send_mail_for_post_invited(post_invitation,emails)
+                post_invitation.accounts_alumni.add(*account)
+                # Lấy danh sách email từ mối quan hệ
+                emails = account.values_list('account__user__email', flat=True)
+                send_mail_for_post_invited(post_invitation, emails)
                 post_invitation.save()
-                return Response(PostInvitationSerializer(post_invitation).data,status=status.HTTP_201_CREATED)
+
+                return Response(PostInvitationSerializer(post_invitation).data, status=status.HTTP_201_CREATED)
         except Exception as ex:
-            return Response({'Phát hiện lỗi', str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'Phát hiện lỗi': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     #Mời tất cả cựu học sinh trong hệ thống
     @action(methods=['post'], detail=True, url_path='invite_all')
     def invite_all(self, request, pk):
@@ -973,8 +974,10 @@ class RoomViewSet(viewsets.ViewSet,generics.ListAPIView):
                 return Response({'error': 'Không tìm thấy first_user_id trong URL.'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            # Lọc các room theo first_user_id từ URL
-            rooms = Room.objects.filter(first_user_id=pk, active=True)
+            # Lọc các room theo first_user_id hoặc second_user_id từ URL
+            rooms = Room.objects.filter(
+                Q(first_user__id=pk) | Q(second_user__id=pk), active=True
+            )
 
             # Phân trang kết quả
             paginator = MyPageSize()
@@ -984,7 +987,7 @@ class RoomViewSet(viewsets.ViewSet,generics.ListAPIView):
             return paginator.get_paginated_response(serializer.data)
         except Exception as ex:
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    #Tạo phòng chát cho 1 account
+
     @action(methods=['post'], detail=False, url_path='create_multiple_rooms')
     def create_multiple_rooms(self, request):
         try:

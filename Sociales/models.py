@@ -6,8 +6,9 @@ from django.template.defaultfilters import default
 from django.db.models import TextChoices
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-
+from django.utils.timezone import now
 from django.utils.html import strip_tags
+from datetime import timedelta
 
 class BaseModel(models.Model):
     created_date = models.DateField(auto_now_add=True, null=True)
@@ -48,6 +49,10 @@ class User(AbstractUser):
     password_changed_at = models.DateTimeField(null=True, blank=True)
     def __str__(self):
         return self.username
+    def set_password(self, raw_password):   #Set lại tg nếu có doi pass đổi pass
+        super().set_password(raw_password)
+        self.password_changed_at = now()
+        self.save()
 
 class Account(BaseModel):
     avatar = CloudinaryField('avatar',
@@ -78,7 +83,13 @@ class Account(BaseModel):
     #
     # def get_cover_avatar_url(self):
     #     return self.cover_avatar.url.replace('image/upload/', '')
-
+    def check_and_update_status(self):
+        # Nếu chưa đổi mật khẩu, dùng thời điểm tạo tài khoản
+        last_password_change = self.user.password_changed_at or self.user.date_joined
+        # Kiểm tra nếu quá 12 giờ
+        if now() - last_password_change > timedelta(hours=12):
+            self.account_status = False
+            self.save()
 
 #TK Cựu SV -> primary_key rồi nên nó không có cột id riêng
 class AlumniAccount(BaseModel):
